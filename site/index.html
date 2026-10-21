@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Frontier · AI careers, mapped</title>
+  <meta name="description" content="Every open AI, ML, data and quant internship and new-grad role in one place, plus hackathons, fellowships and grants, and a personal roadmap built from what employers ask for. Free and open source.">
+  <meta property="og:title" content="Frontier · AI careers, mapped">
+  <meta property="og:description" content="Thousands of open AI roles, refreshed daily, and a free roadmap to get there.">
+  <link rel="alternate" type="application/rss+xml" title="Frontier: new AI roles" href="data/feed.xml">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 26 16 4l12 22z' fill='%237c5cff'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="#explore" aria-label="Frontier home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 26 16 4l12 22z"/></svg>
+      <span>Frontier</span>
+    </a>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#explore" data-view="explore">Explore</a>
+      <a href="#foryou" data-view="foryou">For you</a>
+      <a href="#roadmap" data-view="roadmap">Roadmap</a>
+      <a href="#programs" data-view="programs">Programs</a>
+      <a href="#trends" data-view="trends">Trends</a>
+      <a href="#saved" data-view="saved">Saved <span id="saved-count" class="pill"></span></a>
+    </nav>
+    <button id="theme" class="icon-btn" aria-label="Toggle light and dark">☀</button>
+  </header>
+
+  <main>
+    <section class="hero" id="hero">
+      <h1>AI careers, <em>mapped</em>.</h1>
+      <p class="lede">Every open AI, ML, data and quant internship and new-grad role we can find, refreshed daily. Plus hackathons, fellowships and grants, and a roadmap built from what employers actually ask for.</p>
+      <div class="stats" id="stats" aria-live="polite"></div>
+    </section>
+
+    <!-- Explore -->
+    <section class="view" id="view-explore" hidden>
+      <form class="filters" id="filters" role="search" onsubmit="return false">
+        <input id="q" type="search" placeholder="Search roles, companies, cities… try “LLM intern” or “NVIDIA”" aria-label="Search">
+        <select id="f-kind" aria-label="Type"><option value="any">Internships and new grad</option><option value="internship">Internships</option><option value="new-grad">New grad</option></select>
+        <select id="f-track" aria-label="Role"></select>
+        <select id="f-skill" aria-label="Skill"></select>
+        <select id="f-level" aria-label="Level"><option value="any">Any level</option><option>Undergrad</option><option>Masters</option><option>PhD</option><option>New grad</option></select>
+        <select id="f-country" aria-label="Country"></select>
+        <select id="f-days" aria-label="Posted"><option value="0">Any time</option><option value="1">Last 24 hours</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select>
+        <label class="check"><input type="checkbox" id="f-remote"> Remote</label>
+      </form>
+      <div class="result-bar"><span id="count"></span><button class="link" id="share-search">Copy link to this search</button></div>
+      <ul class="cards" id="results"></ul>
+      <button class="btn ghost more" id="more" hidden>Show more</button>
+    </section>
+
+    <!-- For you -->
+    <section class="view" id="view-foryou" hidden>
+      <div class="split">
+        <form class="panel profile" id="profile" onsubmit="return false">
+          <h2>Your profile</h2>
+          <p class="muted">Stays in your browser. Nothing is sent anywhere.</p>
+          <label>Goal role <select id="p-track"></select></label>
+          <label>Second choice <select id="p-track2"></select></label>
+          <label>Looking for <select id="p-kind"><option value="internship">Internship</option><option value="new-grad">New-grad job</option><option value="any">Either</option></select></label>
+          <label>Level <select id="p-level"><option>Undergrad</option><option>Masters</option><option>PhD</option><option>New grad</option></select></label>
+          <label>Countries <select id="p-countries" multiple size="4"></select></label>
+          <label class="check"><input type="checkbox" id="p-remote" checked> Open to remote</label>
+          <fieldset><legend>Skills you already have</legend><div id="p-known" class="chips"></div></fieldset>
+          <label>Hours a week to learn <input id="p-hours" type="range" min="2" max="40" step="1" value="10"><output id="p-hours-out">10</output></label>
+        </form>
+        <div>
+          <div class="panel digest" id="digest"></div>
+          <ul class="cards" id="matches"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Roadmap -->
+    <section class="view" id="view-roadmap" hidden>
+      <div class="roadmap-head">
+        <div>
+          <h2 id="rm-title">Your roadmap</h2>
+          <p class="muted" id="rm-sub"></p>
+        </div>
+        <div class="actions">
+          <select id="rm-track" aria-label="Roadmap track"></select>
+          <button class="btn" id="rm-share">Share my roadmap</button>
+        </div>
+      </div>
+      <div class="progress-row">
+        <div class="ring" id="rm-ring"></div>
+        <div class="streak" id="rm-streak"></div>
+        <div class="badges" id="rm-badges"></div>
+      </div>
+      <ol class="timeline" id="rm-steps"></ol>
+    </section>
+
+    <!-- Programs -->
+    <section class="view" id="view-programs" hidden>
+      <div class="result-bar">
+        <div class="seg" id="prog-types" role="tablist"></div>
+        <span class="muted">Dates and amounts change. Always check the official page.</span>
+      </div>
+      <ul class="cards" id="programs"></ul>
+    </section>
+
+    <!-- Trends -->
+    <section class="view" id="view-trends" hidden>
+      <div class="grid" id="trends"></div>
+    </section>
+
+    <!-- Saved -->
+    <section class="view" id="view-saved" hidden>
+      <div class="result-bar"><span id="saved-sum"></span><button class="link" id="export">Download as CSV</button></div>
+      <ul class="cards" id="saved"></ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>Free and open source. Role data comes from the public trackers by
+      <a href="https://github.com/SimplifyJobs/Summer2027-Internships">SimplifyJobs</a>,
+      <a href="https://github.com/speedyapply/2027-AI-College-Jobs">speedyapply</a> and
+      <a href="https://github.com/vanshb03/Summer2027-Internships">vanshb03</a>. Thank you.
+      <a href="data/feed.xml">RSS feed</a> · <a href="https://github.com/parveen06naresh/frontier">GitHub</a> · <span id="updated"></span></p>
+  </footer>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
