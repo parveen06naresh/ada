@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shallow-clone the public trackers Frontier reads. Usage: pipeline/fetch.sh [dir]
+# Shallow-clone the public trackers Ada reads. Usage: pipeline/fetch.sh [dir]
 set -euo pipefail
 dir="${1:-.sources}"
 mkdir -p "$dir"

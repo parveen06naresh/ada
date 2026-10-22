@@ -58,7 +58,7 @@ def test_speedyapply_markdown():
     rows = _speedyapply(os.path.join(HERE, "fixtures", "speedy.md"), "internship", "speedyapply", NOW)
     assert [r["company"] for r in rows] == ["Meta", "Microsoft", "Jane Street"]  # row with no link is skipped
     meta, ms, js = rows
-    assert meta["locations"] == ["Menlo Park, CA"] and meta["pay"] == "$50/hr"
+    assert meta["locations"] == ["Menlo Park, CA"] and meta["pay"] == "$50/hr" and meta["domain"] == "meta.com"
     assert meta["posted"] == NOW - 3 * DAY
     assert ms["title"] == "Data Scientist & Analyst" and ms["posted"] == NOW - 60 * DAY
     assert js["category"] == "Quant" and js["pay"] == ""
@@ -87,17 +87,19 @@ def test_build_dedupes_and_merges():
         _raw(title="ML  engineer intern", posted=NOW - 5 * DAY, pay="$60/hr", source="u"),  # same role, other tracker
         _raw(title="Accounting Intern"),  # not AI
         _raw(company="Beta", title="LLM Research Scientist", kind="new-grad", locations=["London, UK"]),
+        _raw(company="beta", title="Data Scientist", domain="beta.ai"),  # website from another tracker row
     ])
-    assert len(jobs) == 2
+    assert len(jobs) == 3
     acme = next(j for j in jobs if j["c"] == "Acme")
     assert acme["d"] == (NOW - 5 * DAY) // DAY and acme["p"] == 60
     beta = next(j for j in jobs if j["c"] == "Beta")
     assert beta["tr"] == "llm" and beta["co"] == ["United Kingdom"] and beta["k"] == "new-grad"
+    assert beta["dm"] == "beta.ai" and acme["dm"] == ""
     stats = build_stats(jobs, [{"type": "hackathon"}], NOW)
-    assert stats["total"] == 2 and stats["programs"] == {"hackathon": 1}
-    assert sum(w["n"] for w in stats["weekly"]) == 2
+    assert stats["total"] == 3 and stats["programs"] == {"hackathon": 1}
+    assert sum(w["n"] for w in stats["weekly"]) == 3
     feed = build_feed(jobs, NOW, "https://example.com/")
-    assert feed.count("<item>") == 2 and "&amp;" not in feed.split("<item>")[0]
+    assert feed.count("<item>") == 3 and "&amp;" not in feed.split("<item>")[0]
 
 
 def test_curated_data_is_consistent():
@@ -116,3 +118,8 @@ def test_curated_data_is_consistent():
     assert set(graph["tracks"]) == set(enrich.TRACK_NAMES)
     for t in graph["tracks"].values():
         assert set(t["skills"]) <= ids
+
+
+def test_cpp_in_titles():
+    assert "cpp" in enrich.skills_of("C++ Developer Intern", "mle")
+    assert "cpp" in enrich.skills_of("Low Latency Systems Engineer", "quant")

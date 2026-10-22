@@ -1,0 +1,28 @@
+# Clicks every program, course and README link each week and opens an issue listing broken ones.
+name: link-check
+on:
+  schedule:
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check links
+        id: lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --no-progress --max-retries 3 --timeout 30 --accept 200,201,202,203,206,301,302,303,307,308,403,429 pipeline/curated/programs.json pipeline/curated/skills.json README.md
+          output: ./lychee/out.md
+          fail: false
+      - name: Open an issue if anything is broken
+        if: steps.lychee.outputs.exit_code != 0
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: Broken links found by the weekly check
+          content-filepath: ./lychee/out.md
+          labels: links

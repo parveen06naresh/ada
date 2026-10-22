@@ -1,6 +1,9 @@
 import {
-  BADGES, TRACKS, checkIn, decodeProfile, encodeProfile, filterJobs, planRoadmap, recommend, today,
+  BADGES, TRACKS, checkIn, decodeProfile, detectSkills, encodeProfile, filterJobs, planRoadmap, recommend, today,
 } from "./match.js";
+import { MODEL, buildPrompt, friendlyError, renderMarkdown, runCoach } from "./coach.js";
+
+const REPO = "https://github.com/parveen06naresh/ada";
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, attrs = {}, ...kids) => {
@@ -17,8 +20,8 @@ const fmt = (n) => n.toLocaleString("en-US");
 
 // Browser storage is a convenience only: the app works without it.
 const store = {
-  get(k, d) { try { const v = localStorage.getItem(`frontier:${k}`); return v ? JSON.parse(v) : d; } catch { return d; } },
-  set(k, v) { try { localStorage.setItem(`frontier:${k}`, JSON.stringify(v)); } catch { /* private mode */ } },
+  get(k, d) { try { const v = localStorage.getItem(`ada:${k}`); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(`ada:${k}`, JSON.stringify(v)); } catch { /* private mode */ } },
 };
 
 const SKILL_NAMES = {};
@@ -48,10 +51,19 @@ async function copy(text, msg) {
 
 // Stable color per company for the monogram.
 function hue(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; }
-function logo(name) {
+function logo(name, domain) {
   const l = el("div", { class: "logo", "aria-hidden": "true" }, (name.match(/[A-Za-z0-9]/) || ["?"])[0].toUpperCase());
   l.style.background = `linear-gradient(135deg, hsl(${hue(name)} 70% 52%), hsl(${(hue(name) + 40) % 360} 70% 40%))`;
+  if (domain) {  // the company's icon when we know its website; the monogram stays if it fails to load
+    const img = el("img", { src: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`, alt: "", loading: "lazy" });
+    img.addEventListener("load", () => { if (img.naturalWidth > 16) { l.textContent = ""; l.classList.add("img"); l.append(img); } });
+  }
   return l;
+}
+
+function reportLink(subject, url) {
+  const body = `What's wrong (closed, wrong role type, wrong location, broken link...):\n\n\nLink: ${url}`;
+  return el("a", { class: "report", href: `${REPO}/issues/new?title=${encodeURIComponent(`Problem: ${subject}`)}&body=${encodeURIComponent(body)}`, target: "_blank", rel: "noopener", title: "Report a problem with this listing" }, "Report");
 }
 
 function ago(d) {
@@ -85,14 +97,14 @@ function jobCard(j, why) {
   );
   const where = j.l.length ? j.l.slice(0, 2).join(" · ") + (j.l.length > 2 ? ` +${j.l.length - 2}` : "") : "Location not listed";
   return el("li", { class: "card" },
-    logo(j.c),
+    logo(j.c, j.dm),
     el("div", {},
       el("h3", {}, el("a", { href: j.u, target: "_blank", rel: "noopener" }, j.t)),
       el("div", { class: "meta" }, el("b", {}, j.c), el("span", {}, where), el("span", {}, ago(j.d))),
       tags,
       why && why.length ? el("div", { class: "why" }, "✓ " + why.join(" · ")) : null,
     ),
-    el("div", { class: "side" }, el("a", { class: "btn", href: j.u, target: "_blank", rel: "noopener" }, "Apply"), save),
+    el("div", { class: "side" }, el("a", { class: "btn", href: j.u, target: "_blank", rel: "noopener" }, "Apply"), save, reportLink(`${j.c}: ${j.t}`, j.u)),
   );
 }
 
@@ -173,13 +185,27 @@ function fillProfile() {
   }));
 }
 
+function readResume() {
+  const text = $("#p-resume").value;
+  store.set("resume", text);
+  const found = detectSkills(text);
+  const p = state.profile;
+  const before = new Set(p.known || []);
+  p.known = [...new Set([...(p.known || []), ...found])];
+  store.set("profile", p);
+  fillProfile();
+  renderForYou();
+  const added = found.filter((s) => !before.has(s)).length;
+  toast(found.length ? `Found ${found.length} skills (${added} new). Matches updated.` : "No skills found. Paste the skills and projects part of your resume.");
+}
+
 function renderForYou() {
   const p = state.profile;
   const recs = recommend(state.jobs, p, 60);
   const week = recs.filter((r) => today() - r.j.d <= 7);
   const total = recommend(state.jobs, p, 100000).length;
   const goal = TRACKS[p.tracks[0]] || "AI";
-  const shareText = `I found ${fmt(total)} ${goal} ${p.kind === "new-grad" ? "new-grad roles" : p.kind === "internship" ? "internships" : "roles"} that fit me on Frontier, ${week.length} posted this week. Free and open source: ${location.origin}${location.pathname}`;
+  const shareText = `I found ${fmt(total)} ${goal} ${p.kind === "new-grad" ? "new-grad roles" : p.kind === "internship" ? "internships" : "roles"} that fit me on Ada, ${week.length} posted this week. Free and open source: ${location.origin}${location.pathname}`;
   $("#digest").replaceChildren(
     el("div", {},
       el("h2", {}, `${fmt(total)} roles fit you`),
@@ -198,7 +224,7 @@ function renderForYou() {
 function weeklyDigest(recs) {
   const lines = recs.filter((r) => today() - r.j.d <= 7).slice(0, 15)
     .map((r) => `• ${r.j.c}: ${r.j.t} (${r.j.l[0] || "location not listed"})\n  ${r.j.u}`);
-  return `My AI roles this week (via Frontier)\n\n${lines.join("\n") || "No new matches this week."}`;
+  return `My AI roles this week (via Ada)\n\n${lines.join("\n") || "No new matches this week."}`;
 }
 
 /* ---------- Roadmap ---------- */
@@ -234,6 +260,10 @@ function renderRoadmap() {
   const facts = { done: doneN, total, best: st.best || 0, saved: state.saved.size };
   $("#rm-badges").replaceChildren(...BADGES.map((b) => el("span", { class: `badge${b.test(facts) ? " on" : ""}` }, (b.test(facts) ? "🏅 " : "") + b.name)));
 
+  renderCoach();
+  const savedPlan = shared ? "" : store.get(`plan:${track}`, "");
+  if (savedPlan && !$("#coach-run").disabled) $("#coach-out").innerHTML = renderMarkdown(savedPlan);
+  else if (!$("#coach-run").disabled) $("#coach-out").innerHTML = "";
   $("#rm-steps").replaceChildren(...plan.steps.map((s) => {
     const box = el("input", { type: "checkbox", checked: s.done, disabled: !!shared });
     box.addEventListener("change", () => {
@@ -257,6 +287,47 @@ function renderRoadmap() {
       demand,
     );
   }));
+}
+
+function renderCoach() {
+  const box = $("#coach");
+  if (state.sharedView) { box.hidden = true; return; }
+  box.hidden = false;
+  if (!$("#coach-key").value) $("#coach-key").value = store.get("key", "") || sessionKey || "";
+  $("#coach-remember").checked = !!store.get("key", "");
+}
+
+let sessionKey = "";
+async function runCoachClick() {
+  const key = $("#coach-key").value.trim();
+  const out = $("#coach-out");
+  if (!/^sk-ant-/.test(key)) { out.innerHTML = '<p class="err">Paste an Anthropic API key. It starts with sk-ant-.</p>'; return; }
+  sessionKey = key;
+  if ($("#coach-remember").checked) store.set("key", key); else store.set("key", "");
+  const track = $("#rm-track").value;
+  const p = state.profile;
+  const known = [...new Set([...(p.known || []), ...(state.progress[track] || [])])];
+  const prompt = buildPrompt({
+    profile: { ...p, known }, trackName: TRACKS[track],
+    roadmap: planRoadmap(state.graph, track, known, p.hours || 10, demandMap()),
+    matches: recommend(state.jobs, { ...p, tracks: [track, ...(p.tracks || []).filter((t) => t !== track)] }, 20),
+    demand: demandMap(), resume: store.get("resume", ""),
+  });
+  const btn = $("#coach-run");
+  btn.disabled = true;
+  btn.textContent = "Writing your plan…";
+  let text = "";
+  out.innerHTML = '<p class="muted">Claude is reading your profile and today\'s openings…</p>';
+  try {
+    await runCoach({ key, prompt, onText: (t) => { text += t; out.innerHTML = renderMarkdown(text); } });
+    store.set(`plan:${track}`, text);
+    toast("Your plan is ready");
+  } catch (e) {
+    out.innerHTML = `<p class="err">${friendlyError(e).replace(/</g, "&lt;")}</p>` + (text ? renderMarkdown(text) : "");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Write my 90-day plan";
+  }
 }
 
 function shareRoadmap() {
@@ -286,7 +357,7 @@ function renderPrograms() {
         el("span", { class: "tag" }, p.who),
         p.amount ? el("span", { class: "tag pay" }, p.amount) : null),
     ),
-    el("div", { class: "side" }, el("a", { class: "btn", href: p.url, target: "_blank", rel: "noopener" }, "Visit")),
+    el("div", { class: "side" }, el("a", { class: "btn", href: p.url, target: "_blank", rel: "noopener" }, "Visit"), reportLink(p.title, p.url)),
   )));
 }
 
@@ -347,7 +418,7 @@ function exportCsv() {
   const q = (s) => `"${String(s).replace(/"/g, '""')}"`;
   const rows = [["Company", "Title", "Type", "Location", "Posted", "Link"], ...list.map((j) => [j.c, j.t, j.k, j.l.join("; "), new Date(j.d * 864e5).toISOString().slice(0, 10), j.u])];
   const blob = new Blob([rows.map((r) => r.map(q).join(",")).join("\n")], { type: "text/csv" });
-  const a = el("a", { href: URL.createObjectURL(blob), download: "frontier-saved-roles.csv" });
+  const a = el("a", { href: URL.createObjectURL(blob), download: "ada-saved-roles.csv" });
   document.body.append(a); a.click(); a.remove();
 }
 
@@ -427,6 +498,7 @@ async function boot() {
   $("#more").addEventListener("click", () => { state.shown += 60; renderExplore(); });
   $("#share-search").addEventListener("click", () => copy(`${location.origin}${location.pathname}?${searchParams()}#explore`, "Search link copied"));
   $("#profile").addEventListener("input", (e) => {
+    if (e.target.id === "p-resume") return;
     if (e.target.id === "p-hours") $("#p-hours-out").value = e.target.value;
     readProfile();
     renderForYou();
@@ -434,6 +506,21 @@ async function boot() {
   $("#rm-track").addEventListener("change", () => { if (state.sharedView) location.hash = "roadmap"; else renderRoadmap(); });
   $("#rm-share").addEventListener("click", shareRoadmap);
   $("#export").addEventListener("click", exportCsv);
+  $("#p-resume").value = store.get("resume", "");
+  $("#p-read").addEventListener("click", readResume);
+  $("#coach-run").addEventListener("click", runCoachClick);
+  $("#coach-model").textContent = MODEL;
+  addEventListener("keydown", (e) => {
+    if (e.key === "/" && !/input|textarea|select/i.test(document.activeElement.tagName)) {
+      e.preventDefault();
+      if (location.hash && location.hash !== "#explore") location.hash = "explore";
+      setTimeout(() => $("#q").focus(), 0);
+    }
+  });
+  if (!store.get("toured", false)) {
+    $("#tour").hidden = false;
+    $("#tour-close").addEventListener("click", () => { $("#tour").hidden = true; store.set("toured", true); });
+  }
   updateSavedCount();
   addEventListener("hashchange", route);
   route();

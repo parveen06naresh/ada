@@ -141,3 +141,29 @@ export const BADGES = [
   { id: "streak7", name: "7-day streak", test: (x) => x.best >= 7 },
   { id: "saved10", name: "10 roles saved", test: (x) => x.saved >= 10 },
 ];
+
+// Resume reading: find skills mentioned in pasted text. Runs in the browser, nothing is sent.
+const SKILL_PATTERNS = {
+  python: /\bpython\b/i,
+  git: /\b(git|github|gitlab|linux|bash|shell|unix)\b/i,
+  math: /\b(linear algebra|calculus|probability|discrete math|real analysis|differential equations)\b/i,
+  stats: /\b(statistic\w*|a\/b test\w*|hypothesis test\w*|regression analysis|bayesian|econometric\w*)\b/i,
+  sql: /\b(sql|postgres\w*|mysql|sqlite|bigquery|snowflake|pandas|dbt)\b/i,
+  ml: /\b(machine learning|scikit-learn|sklearn|xgboost|lightgbm|random forest|logistic regression|kaggle)\b/i,
+  pytorch: /\b(pytorch|torch|tensorflow|keras|jax|deep learning|neural net\w*|cnn|rnn|lstm)\b/i,
+  llms: /\b(llms?|large language models?|transformers?|gpt|bert|fine-?tun\w*|hugging ?face|lora)\b/i,
+  rag: /\b(rag|retrieval[- ]augmented|langchain|llamaindex|vector (db|database|store)|embeddings?|agents?|prompt engineering)\b/i,
+  cv: /\b(computer vision|opencv|image (classification|segmentation)|object detection|yolo|cnn)\b/i,
+  nlp: /\b(nlp|natural language|spacy|nltk|text classification|speech recognition|asr|sentiment)\b/i,
+  rl: /\b(reinforcement learning|rl|gymnasium|openai gym|robotics|ros|control systems?)\b/i,
+  cpp: /(^|[^a-z])(c\+\+|cpp)(?![a-z])/i,
+  cuda: /\b(cuda|gpu programming|triton|kernels?|opencl|hpc)\b/i,
+  distributed: /\b(distributed (systems|training|computing)|spark|hadoop|kafka|kubernetes|ray|mpi)\b/i,
+  mlops: /\b(mlops|docker|kubernetes|aws|gcp|azure|ci\/cd|mlflow|airflow|fastapi|flask|deploy\w*)\b/i,
+  research: /\b(publications?|published|paper|arxiv|neurips|icml|iclr|cvpr|acl|research assistant)\b/i,
+  quantfin: /\b(quant\w*|trading|derivatives?|options pricing|portfolio|backtest\w*|stochastic)\b/i,
+};
+
+export function detectSkills(text) {
+  return Object.entries(SKILL_PATTERNS).filter(([, rx]) => rx.test(text || "")).map(([id]) => id);
+}

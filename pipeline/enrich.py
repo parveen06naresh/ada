@@ -46,7 +46,7 @@ SKILLS = {
     "sql": r"\b(data|analytics|analyst|sql|business intelligence|bi|insights?)\b",
     "stats": r"\b(statistic\w*|data scien\w*|quant\w*|research|analytics|econom\w*|experimentation)\b",
     "math": r"\b(quant\w*|research|scientist|math\w*|optimization|trading)\b",
-    "cpp": r"\b(c\+\+|cpp|embedded|firmware|low latency|trading system|systems|gpu|cuda|robot\w*|hardware)\b",
+    "cpp": r"(?<![a-z])(c\+\+|cpp|embedded|firmware|low latency|trading system|systems|gpu|cuda|robot\w*|hardware)(?!\w)",
 }
 _SKILL_RE = {k: re.compile(rx, re.I) for k, rx in SKILLS.items()}
 

@@ -30,7 +30,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 FIELDS = {"id": "id", "k": "kind", "t": "title", "c": "company", "l": "locations", "co": "countries",
           "r": "remote", "tr": "track", "s": "skills", "lv": "level", "u": "url", "d": "posted (unix days)",
-          "p": "pay per hour (USD, when published)", "src": "source"}
+          "p": "pay per hour (USD, when published)", "src": "source", "dm": "company website, when a tracker lists it"}
 
 
 def _key(j: dict) -> str:
@@ -39,6 +39,8 @@ def _key(j: dict) -> str:
 
 
 def build_jobs(raw: list[dict]) -> list[dict]:
+    # Company websites (for logos) come from trackers that publish them; reuse across sources by name.
+    domains = {j["company"].lower(): j["domain"] for j in raw if j.get("domain")}
     seen: dict[str, dict] = {}
     for j in raw:
         if not enrich.is_ai(j["title"], j["category"]):
@@ -68,6 +70,7 @@ def build_jobs(raw: list[dict]) -> list[dict]:
             "d": j["posted"] // DAY,
             "p": pay,
             "src": j["source"],
+            "dm": domains.get(j["company"].lower(), ""),
         }
     return sorted(seen.values(), key=lambda x: (-x["d"], x["c"].lower()))
 
@@ -117,7 +120,7 @@ def build_feed(jobs: list[dict], now: float, site_url: str) -> str:
         )
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel>'
-        f"<title>Frontier: new AI roles</title><link>{escape(site_url)}</link>"
+        f"<title>Ada: new AI roles</title><link>{escape(site_url)}</link>"
         "<description>New AI, ML, data and quant internships and new-grad roles, refreshed daily.</description>"
         f"<lastBuildDate>{formatdate(now, usegmt=True)}</lastBuildDate>{''.join(items)}</channel></rss>\n"
     )
@@ -127,7 +130,7 @@ def main(argv=None) -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", default=os.path.join(ROOT, ".sources"))
     ap.add_argument("--out", default=os.path.join(ROOT, "site", "data"))
-    ap.add_argument("--site-url", default=os.environ.get("SITE_URL", "https://parveen06naresh.github.io/frontier/"))
+    ap.add_argument("--site-url", default=os.environ.get("SITE_URL", "https://parveen06naresh.github.io/ada/"))
     a = ap.parse_args(argv)
     now = time.time()
     jobs = build_jobs(load_all(a.src, now))

@@ -1,4 +1,4 @@
-# Contributing to Frontier
+# Contributing to Ada
 
 Thanks for helping people find their way into AI. Small, focused pull requests are best.
 

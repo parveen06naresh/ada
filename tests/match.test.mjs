@@ -64,3 +64,29 @@ test("streaks grow on consecutive days and reset after a gap", () => {
   const earned = BADGES.filter((b) => b.test({ done: 3, total: 6, best: 7, saved: 0 })).map((b) => b.id);
   assert.deepEqual(earned, ["start", "three", "half", "streak7"]);
 });
+
+test("resume reading finds skills and ignores unrelated text", async () => {
+  const { detectSkills } = await import("../site/js/match.js");
+  const found = detectSkills("Built a RAG chatbot with LangChain and PyTorch; SQL (Postgres); deployed with Docker on AWS. Python, C++.");
+  for (const s of ["rag", "pytorch", "sql", "mlops", "python", "cpp"]) assert.ok(found.includes(s), s);
+  assert.deepEqual(detectSkills("I like hiking and cooking."), []);
+  const ids = new Set(graph.skills.map((s) => s.id));
+  for (const s of detectSkills("python git linear algebra statistics sql scikit-learn pytorch llm rag opencv nlp reinforcement learning c++ cuda spark docker arxiv trading")) assert.ok(ids.has(s), s);
+});
+
+test("coach prompt carries the facts and markdown rendering is safe", async () => {
+  const { buildPrompt, renderMarkdown } = await import("../site/js/coach.js");
+  const roadmap = planRoadmap(graph, "llm", ["python"], 10);
+  const prompt = buildPrompt({
+    profile: { kind: "internship", level: "Undergrad", countries: ["United States"], remoteOk: true, known: ["python"], hours: 10 },
+    trackName: "LLM & GenAI Engineer", roadmap, matches: [{ j: job({ c: "Acme", t: "LLM Intern", u: "https://acme.example/1" }) }],
+    demand: { python: 1, pytorch: 0.5 }, resume: "Built a chatbot",
+  });
+  assert.ok(prompt.includes("Acme: LLM Intern") && prompt.includes("https://acme.example/1"));
+  assert.ok(prompt.includes("Built a chatbot") && prompt.includes("pytorch 50%") && !prompt.includes("python 100%"));
+  assert.ok(prompt.includes("Python and tooling (already known)"));
+  const html = renderMarkdown("## Plan\n- **Do** <script>alert(1)</script> [x](https://ok.example) [y](javascript:alert(1))\n1. one");
+  assert.ok(html.includes("<h3>Plan</h3>") && html.includes("<b>Do</b>") && html.includes('href="https://ok.example"'));
+  assert.ok(!html.includes("<script>") && !html.includes('href="javascript'));
+  assert.ok(html.includes("<ol><li>one</li></ol>"));
+});

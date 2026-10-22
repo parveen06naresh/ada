@@ -3,19 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Frontier · AI careers, mapped</title>
+  <title>Ada · AI careers, mapped</title>
   <meta name="description" content="Every open AI, ML, data and quant internship and new-grad role in one place, plus hackathons, fellowships and grants, and a personal roadmap built from what employers ask for. Free and open source.">
-  <meta property="og:title" content="Frontier · AI careers, mapped">
+  <meta property="og:title" content="Ada · AI careers, mapped">
   <meta property="og:description" content="Thousands of open AI roles, refreshed daily, and a free roadmap to get there.">
-  <link rel="alternate" type="application/rss+xml" title="Frontier: new AI roles" href="data/feed.xml">
+  <meta property="og:image" content="https://parveen06naresh.github.io/ada/og.png">
+  <meta property="og:url" content="https://parveen06naresh.github.io/ada/">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="alternate" type="application/rss+xml" title="Ada: new AI roles" href="data/feed.xml">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 26 16 4l12 22z' fill='%237c5cff'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header class="top">
-    <a class="brand" href="#explore" aria-label="Frontier home">
+    <a class="brand" href="#explore" aria-label="Ada home">
       <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 26 16 4l12 22z"/></svg>
-      <span>Frontier</span>
+      <span>Ada</span>
     </a>
     <nav class="tabs" aria-label="Sections">
       <a href="#explore" data-view="explore">Explore</a>
@@ -29,6 +32,10 @@
   </header>
 
   <main>
+    <aside class="tour" id="tour" hidden>
+      <div><b>New here?</b> Three steps: <a href="#foryou">set your profile</a> (or paste your resume), <a href="#roadmap">get your roadmap</a>, then save roles with ☆. Press <kbd>/</kbd> to search.</div>
+      <button class="link" id="tour-close" aria-label="Dismiss">Got it</button>
+    </aside>
     <section class="hero" id="hero">
       <h1>AI careers, <em>mapped</em>.</h1>
       <p class="lede">Every open AI, ML, data and quant internship and new-grad role we can find, refreshed daily. Plus hackathons, fellowships and grants, and a roadmap built from what employers actually ask for.</p>
@@ -64,6 +71,8 @@
           <label>Level <select id="p-level"><option>Undergrad</option><option>Masters</option><option>PhD</option><option>New grad</option></select></label>
           <label>Countries <select id="p-countries" multiple size="4"></select></label>
           <label class="check"><input type="checkbox" id="p-remote" checked> Open to remote</label>
+          <label>Paste your resume (optional) <textarea id="p-resume" rows="4" placeholder="Paste your skills and projects. Read on this device only."></textarea></label>
+          <button type="button" class="btn ghost" id="p-read">Read my skills</button>
           <fieldset><legend>Skills you already have</legend><div id="p-known" class="chips"></div></fieldset>
           <label>Hours a week to learn <input id="p-hours" type="range" min="2" max="40" step="1" value="10"><output id="p-hours-out">10</output></label>
         </form>
@@ -91,6 +100,20 @@
         <div class="streak" id="rm-streak"></div>
         <div class="badges" id="rm-badges"></div>
       </div>
+      <section class="panel coach" id="coach" hidden>
+        <div class="coach-head">
+          <div>
+            <h3>AI coach</h3>
+            <p class="muted">Claude reads your profile, your resume and today's best-matching openings, then writes your personal 90-day plan. Uses your own Anthropic API key (<span id="coach-model"></span>, about 10 to 20 cents a plan). The key goes from your browser straight to Anthropic. Ada has no server and never sees it.</p>
+          </div>
+        </div>
+        <div class="coach-row">
+          <input id="coach-key" type="password" autocomplete="off" placeholder="sk-ant-…  (get one at console.anthropic.com)" aria-label="Anthropic API key">
+          <label class="check"><input type="checkbox" id="coach-remember"> Remember on this device</label>
+          <button class="btn" id="coach-run" type="button">Write my 90-day plan</button>
+        </div>
+        <div class="coach-out" id="coach-out" aria-live="polite"></div>
+      </section>
       <ol class="timeline" id="rm-steps"></ol>
     </section>
 
@@ -120,7 +143,7 @@
       <a href="https://github.com/SimplifyJobs/Summer2027-Internships">SimplifyJobs</a>,
       <a href="https://github.com/speedyapply/2027-AI-College-Jobs">speedyapply</a> and
       <a href="https://github.com/vanshb03/Summer2027-Internships">vanshb03</a>. Thank you.
-      <a href="data/feed.xml">RSS feed</a> · <a href="https://github.com/parveen06naresh/frontier">GitHub</a> · <span id="updated"></span></p>
+      <a href="data/feed.xml">RSS feed</a> · <a href="https://github.com/parveen06naresh/ada">GitHub</a> · <span id="updated"></span></p>
   </footer>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script type="module" src="js/app.js"></script>

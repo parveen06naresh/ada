@@ -1,8 +1,8 @@
-<h1 align="center">▲ Frontier</h1>
+<h1 align="center">▲ Ada</h1>
 
 <p align="center"><b>AI careers, mapped.</b><br>
 Every open AI, ML, data and quant internship and new-grad role in one place, refreshed daily.<br>
-Plus hackathons, fellowships and grants, and a free roadmap built from what employers actually ask for.</p>
+Plus hackathons, fellowships and grants, a free roadmap built from what employers actually ask for,<br>and an AI coach that writes your personal 90-day plan.</p>
 
 <p align="center">
 <b>5,295</b> open roles · <b>1,693</b> companies · <b>581</b> posted this week · <b>43</b> programs · <b>$0</b> to run
@@ -12,30 +12,32 @@ Plus hackathons, fellowships and grants, and a free roadmap built from what empl
 
 ## Why
 
-AI opportunities are scattered across a dozen GitHub trackers, job boards, university pages and Discord servers. Students check five sites every morning and still miss the role that fit them best. Frontier pulls them into one fast, searchable place, tells you which ones fit **you** and why, and gives you a week-by-week plan to close the gap.
+AI opportunities are scattered across a dozen GitHub trackers, job boards, university pages and Discord servers. Students check five sites every morning and still miss the role that fit them best. Ada pulls them into one fast, searchable place, tells you which ones fit **you** and why, and gives you a week-by-week plan to close the gap.
 
 ## What it does
 
 | | |
 |---|---|
 | **Explore** | Search and filter every role by role type, skill, level, country, remote and posting date. Share any search as a link. |
-| **For you** | Fill in a 30-second profile. Frontier ranks roles for you and shows the reason for every match ("Your goal: LLM Engineer · You know 2 of 3 core skills · Posted this week"). |
+| **For you** | Fill in a 30-second profile, or paste your resume and Ada reads your skills on your device. It ranks roles for you and shows the reason for every match ("Your goal: LLM Engineer · You know 2 of 3 core skills · Posted this week"). |
+| **AI coach** | Bring your own Anthropic API key and Claude writes your 90-day plan from your resume, your roadmap and today's best-matching openings: three portfolio projects, the roles to apply to now, and resume fixes. About 10 to 20 cents a plan, paid on your own key. |
 | **Roadmap** | Pick one of 10 career tracks. Get a week-by-week plan in prerequisite order, with free courses from Stanford, MIT, fast.ai and Karpathy, a portfolio project for every step, and how much the market asks for each skill. Track progress, keep a streak, earn badges, share your roadmap as a link. |
 | **Programs** | 43 hand-picked hackathons, competitions, fellowships, research programs, grants, startup accelerators and free-compute programs. |
 | **Trends** | New roles per week, open roles by track, the skills employers ask for, the best-paying roles that publish pay, who is hiring most, and where. |
 | **Weekly digest** | An RSS feed of new roles, plus a one-click "copy my weekly digest" of your best new matches. |
 | **Saved** | Star roles and export them to CSV for your application tracker. |
+| **Trust** | Every listing links to the employer's own posting and has a "Report" link. A weekly job clicks every program and course link and opens an issue for any that break. |
 
 ![Roadmap view](docs/roadmap.png)
 
 ## Private by design
 
-There are no accounts and no server. Your profile, saved roles and progress stay in your browser. The whole site is static files on GitHub Pages, and a GitHub Action rebuilds the data every morning. Running it costs nothing.
+There are no accounts and no server. Your profile, resume, saved roles and progress stay in your browser. If you use the AI coach, your key and prompt go from your browser straight to Anthropic, never to us. The whole site is static files on GitHub Pages, and a GitHub Action rebuilds the data every morning. Running it costs nothing.
 
 ## Run it locally
 
 ```bash
-git clone https://github.com/parveen06naresh/frontier && cd frontier
+git clone https://github.com/parveen06naresh/ada && cd ada
 bash pipeline/fetch.sh .sources              # clone the public trackers (about a minute)
 python -m pipeline.build --src .sources      # writes site/data/*.json and feed.xml
 python -m http.server -d site 8000           # open http://localhost:8000
@@ -54,9 +56,10 @@ public trackers ──► pipeline/sources.py ──► pipeline/enrich.py ─�
                                              country, pay                                    stats
 ```
 
-* **Sources.** Roles come from the public trackers by [SimplifyJobs](https://github.com/SimplifyJobs/Summer2027-Internships) ([new grad](https://github.com/SimplifyJobs/New-Grad-Positions)), [speedyapply](https://github.com/speedyapply/2027-AI-College-Jobs) and [vanshb03](https://github.com/vanshb03/Summer2027-Internships). Frontier links straight to each employer's posting. Thank you to their maintainers.
+* **Sources.** Roles come from the public trackers by [SimplifyJobs](https://github.com/SimplifyJobs/Summer2027-Internships) ([new grad](https://github.com/SimplifyJobs/New-Grad-Positions)), [speedyapply](https://github.com/speedyapply/2027-AI-College-Jobs) and [vanshb03](https://github.com/vanshb03/Summer2027-Internships). Ada links straight to each employer's posting. Thank you to their maintainers.
 * **Tagging.** Every rule is a readable regex in `pipeline/enrich.py`, so anyone can fix a misfiled role. Skills are read from job titles and role type, because the trackers do not publish full descriptions.
 * **Matching.** A transparent points system in `site/js/match.js`. Every point comes with the reason shown on the card. No black box.
+* **AI coach.** `site/js/coach.js` sends one request to Claude with the official Anthropic SDK, using the visitor's key. The prompt contains only facts from the page (profile, roadmap, live postings), and the model is told not to invent links or companies.
 * **Roadmap.** A skill graph in `pipeline/curated/skills.json`: 19 skills, their prerequisites, free resources and a project each. The planner orders them, skips what you know, and spaces them by your hours per week.
 
 ![Trends view](docs/trends.png)

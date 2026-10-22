@@ -41,6 +41,11 @@ _A = re.compile(r'<a href="([^"]+)"')
 _TAG = re.compile(r"<[^>]+>")
 
 
+def _domain(url: str) -> str:
+    m = re.match(r"https?://(?:www\.)?([^/?#]+)", url)
+    return m.group(1).lower() if m else ""
+
+
 def _speedyapply(path: str, kind: str, source: str, now: float) -> list[dict]:
     """Markdown tables: Company | Position | Location | [Salary] | Posting | Age, under FAANG/Quant/Other headings."""
     out, cols, section = [], [], ""
@@ -65,7 +70,9 @@ def _speedyapply(path: str, kind: str, source: str, now: float) -> list[dict]:
             days = int(age.group(1)) * (30 if age and age.group(2) == "mo" else 1) if age else 0
             loc = html.unescape(_TAG.sub("", row.get("location", ""))).strip()
             loc = re.sub(r"\s*\+\d+$", "", loc)
+            home = _A.search(row["company"])
             out.append({
+                "domain": _domain(home.group(1)) if home else "",
                 "company": html.unescape(_TAG.sub("", row["company"])).strip(),
                 "title": html.unescape(_TAG.sub("", row["position"])).strip(),
                 "locations": [loc] if loc else [],
