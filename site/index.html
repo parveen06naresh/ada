@@ -28,6 +28,7 @@
       <a href="#trends" data-view="trends">Trends</a>
       <a href="#saved" data-view="saved">Saved <span id="saved-count" class="pill"></span></a>
     </nav>
+    <button id="account" class="btn ghost small" hidden>Sign in</button>
     <button id="theme" class="icon-btn" aria-label="Toggle light and dark">☀</button>
   </header>
 
@@ -64,7 +65,7 @@
       <div class="split">
         <form class="panel profile" id="profile" onsubmit="return false">
           <h2>Your profile</h2>
-          <p class="muted">Stays in your browser. Nothing is sent anywhere.</p>
+          <p class="muted" id="profile-note">Stays in your browser. Nothing is sent anywhere.</p>
           <label>Goal role <select id="p-track"></select></label>
           <label>Second choice <select id="p-track2"></select></label>
           <label>Looking for <select id="p-kind"><option value="internship">Internship</option><option value="new-grad">New-grad job</option><option value="any">Either</option></select></label>
@@ -145,6 +146,23 @@
       <a href="https://github.com/vanshb03/Summer2027-Internships">vanshb03</a>. Thank you.
       <a href="data/feed.xml">RSS feed</a> · <a href="https://github.com/parveen06naresh/ada">GitHub</a> · <span id="updated"></span></p>
   </footer>
+  <dialog id="account-dlg" class="panel dlg">
+    <form method="dialog"><button class="icon-btn close" aria-label="Close">✕</button></form>
+    <div id="acct-out">
+      <h2>Sync across devices</h2>
+      <p class="muted">Optional. Sign in to keep your saved roles, profile, resume and roadmap progress on every device. Your API key and AI plans never leave this device.</p>
+      <button class="btn" id="acct-github" type="button">Continue with GitHub</button>
+      <div class="or">or</div>
+      <div class="coach-row"><input id="acct-email" type="email" placeholder="you@school.edu" aria-label="Email"><button class="btn ghost" id="acct-email-go" type="button">Email me a link</button></div>
+      <p class="muted" id="acct-msg" aria-live="polite"></p>
+    </div>
+    <div id="acct-in" hidden>
+      <h2>You're synced</h2>
+      <p class="muted">Signed in as <b id="acct-who"></b>. Changes save to your account within a few seconds.</p>
+      <button class="btn ghost" id="acct-signout" type="button">Sign out</button>
+      <button class="link danger" id="acct-delete" type="button">Delete my cloud data</button>
+    </div>
+  </dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script type="module" src="js/app.js"></script>
 </body>

@@ -1,7 +1,8 @@
 import {
-  BADGES, TRACKS, checkIn, decodeProfile, detectSkills, encodeProfile, filterJobs, planRoadmap, recommend, today,
+  BADGES, TRACKS, checkIn, decodeProfile, detectSkills, encodeProfile, filterJobs, planRoadmap, recommend, today, unpackJobs,
 } from "./match.js";
 import { MODEL, buildPrompt, friendlyError, renderMarkdown, runCoach } from "./coach.js";
+import * as sync from "./sync.js";
 
 const REPO = "https://github.com/parveen06naresh/ada";
 
@@ -21,7 +22,12 @@ const fmt = (n) => n.toLocaleString("en-US");
 // Browser storage is a convenience only: the app works without it.
 const store = {
   get(k, d) { try { const v = localStorage.getItem(`ada:${k}`); return v ? JSON.parse(v) : d; } catch { return d; } },
-  set(k, v) { try { localStorage.setItem(`ada:${k}`, JSON.stringify(v)); } catch { /* private mode */ } },
+  set(k, v, quiet) {
+    try {
+      localStorage.setItem(`ada:${k}`, JSON.stringify(v));
+      if (!quiet && sync.SYNCED.includes(k)) { localStorage.setItem("ada:updated", String(Date.now())); sync.pushSoon(); }
+    } catch { /* private mode */ }
+  },
 };
 
 const SKILL_NAMES = {};
@@ -458,18 +464,7 @@ function initTheme() {
   });
 }
 
-async function boot() {
-  initTheme();
-  const get = (f) => fetch(`data/${f}`).then((r) => { if (!r.ok) throw new Error(`${f}: ${r.status}`); return r.json(); });
-  let opp;
-  try {
-    [opp, state.programs, state.graph, state.stats] = await Promise.all([get("opportunities.json"), get("programs.json"), get("skills.json"), get("stats.json")]);
-  } catch (e) {
-    $("#stats").replaceChildren(el("div", { class: "empty" }, `Could not load data (${e.message}). Run "python -m pipeline.build" or refresh.`));
-    return;
-  }
-  state.jobs = opp.jobs;
-  for (const s of state.graph.skills) SKILL_NAMES[s.id] = s.name;
+function renderStats() {
   const s = state.stats;
   $("#stats").replaceChildren(
     el("div", { class: "stat" }, el("b", {}, fmt(s.total)), el("span", {}, "open AI roles")),
@@ -477,6 +472,77 @@ async function boot() {
     el("div", { class: "stat" }, el("b", {}, fmt(s.companies)), el("span", {}, "companies hiring")),
     el("div", { class: "stat" }, el("b", {}, fmt(state.programs.length)), el("span", {}, "hackathons, fellowships and grants")),
   );
+}
+
+/* ---------- Optional sign-in ---------- */
+function syncedState() {
+  return { saved: [...state.saved], profile: state.profile, progress: state.progress, streak: state.streak,
+    resume: store.get("resume", ""), updated: store.get("updated", 0) };
+}
+
+function applySynced(m) {
+  state.saved = new Set(m.saved); state.profile = m.profile; state.progress = m.progress; state.streak = m.streak;
+  for (const k of sync.SYNCED) store.set(k, k === "saved" ? m.saved : m[k], true);
+  store.set("updated", m.updated, true);
+  $("#p-resume").value = m.resume || "";
+  fillProfile(); updateSavedCount();
+  if (state.jobs.length) route();
+}
+
+function initAccount() {
+  const btn = $("#account"), dlg = $("#account-dlg");
+  if (!sync.enabled) return;
+  btn.hidden = false;
+  const show = (user) => {
+    btn.textContent = user ? "✓ Synced" : "Sign in";
+    btn.title = user ? `Signed in as ${user.email || "you"}` : "Sign in to sync across devices";
+    $("#acct-out").hidden = !!user; $("#acct-in").hidden = !user;
+    $("#acct-who").textContent = user?.email || "";
+    $("#profile-note").textContent = user ? "Synced to your account, so it follows you to any device." : "Stays in your browser. Nothing is sent anywhere.";
+  };
+  btn.addEventListener("click", () => dlg.showModal());
+  $("#acct-email-go").addEventListener("click", async () => {
+    const email = $("#acct-email").value.trim();
+    if (!/^\S+@\S+\.\S+$/.test(email)) return toast("Enter your email first");
+    try { await sync.signInWithEmail(email); $("#acct-msg").textContent = `Check ${email} for a sign-in link.`; }
+    catch (e) { $("#acct-msg").textContent = `Could not send the link: ${e.message}`; }
+  });
+  $("#acct-github").addEventListener("click", () => sync.signInWithGitHub().catch((e) => { $("#acct-msg").textContent = e.message; }));
+  $("#acct-signout").addEventListener("click", async () => { await sync.signOut(); dlg.close(); toast("Signed out. Your data stays on this device."); });
+  $("#acct-delete").addEventListener("click", async () => {
+    if (!confirm("Delete your synced data from the cloud? This device keeps its copy.")) return;
+    await sync.deleteMyData(); dlg.close(); toast("Cloud copy deleted");
+  });
+  show(null);
+  sync.initSync({ read: syncedState, write: applySynced, onChange: show }).catch((e) => console.warn("Ada sync:", e.message));
+}
+
+async function boot() {
+  initTheme();
+  initAccount();
+  const get = (f) => fetch(`data/${f}`).then((r) => { if (!r.ok) throw new Error(`${f}: ${r.status}`); return r.json(); });
+  // Small files first so the page paints right away; the big role list follows.
+  const big = get("opportunities.json");
+  big.catch(() => {});  // reported below if it fails
+  let opp;
+  try {
+    let latest;
+    [state.programs, state.graph, state.stats, latest] = await Promise.all([get("programs.json"), get("skills.json"), get("stats.json"), get("latest.json").catch(() => null)]);
+    renderStats();
+    if (latest && (location.hash.slice(1) || "explore") === "explore" && !location.search) {
+      for (const s of state.graph.skills) SKILL_NAMES[s.id] = s.name;
+      $("#view-explore").hidden = false;
+      $("#count").textContent = `Newest roles · loading all ${fmt(state.stats.total)}…`;
+      $("#results").replaceChildren(...unpackJobs(latest).map((j) => jobCard(j)));
+    }
+    opp = await big;
+  } catch (e) {
+    $("#stats").replaceChildren(el("div", { class: "empty" }, `Could not load data (${e.message}). Run "python -m pipeline.build" or refresh.`));
+    return;
+  }
+  state.jobs = unpackJobs(opp);
+  for (const s of state.graph.skills) SKILL_NAMES[s.id] = s.name;
+  const s = state.stats;
   $("#updated").textContent = `Updated ${new Date(opp.updated * 1000).toLocaleString()}`;
 
   const trackRows = Object.entries(TRACKS);
@@ -493,7 +559,11 @@ async function boot() {
   fillProfile();
 
   applySearchParams(new URLSearchParams(location.search));
-  const rerun = () => { state.shown = 40; renderExplore(); };
+  let timer;
+  const rerun = (e) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { state.shown = 40; renderExplore(); }, e?.target?.id === "q" ? 120 : 0);
+  };
   $("#filters").addEventListener("input", rerun);
   $("#more").addEventListener("click", () => { state.shown += 60; renderExplore(); });
   $("#share-search").addEventListener("click", () => copy(`${location.origin}${location.pathname}?${searchParams()}#explore`, "Search link copied"));
@@ -527,3 +597,5 @@ async function boot() {
 }
 
 boot();
+// Cache the app for instant repeat visits and offline use (only when served over http(s), not file://).
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});

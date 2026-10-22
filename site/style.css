@@ -240,3 +240,14 @@ textarea { width: 100%; min-width: 0; background: var(--bg2); color: var(--text)
 .err { color: #f87171; }
 .btn:disabled { opacity: .6; cursor: progress; }
 @media (max-width: 700px) { .coach-row { grid-template-columns: 1fr; } }
+
+/* Optional sign-in */
+.btn.small { padding: 6px 12px; font-size: 13px; }
+.dlg { max-width: 420px; width: calc(100% - 32px); color: var(--text); border: 1px solid var(--line); position: relative; }
+.dlg::backdrop { background: rgba(0, 0, 0, .55); backdrop-filter: blur(3px); }
+.dlg h2 { margin-top: 0; }
+.dlg .close { position: absolute; top: 10px; right: 10px; }
+.dlg .btn { margin-top: 6px; }
+.dlg .or { text-align: center; color: var(--muted); margin: 12px 0; font-size: 13px; }
+.dlg .coach-row input { flex: 1; min-width: 0; }
+.link.danger { color: #f87171; margin-left: 12px; }

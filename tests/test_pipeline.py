@@ -2,7 +2,7 @@ import json
 import os
 
 from pipeline import enrich
-from pipeline.build import build_feed, build_jobs, build_stats
+from pipeline.build import build_feed, build_jobs, build_stats, pack_jobs
 from pipeline.sources import DAY, _simplify, _speedyapply
 
 HERE = os.path.dirname(__file__)
@@ -123,3 +123,21 @@ def test_curated_data_is_consistent():
 def test_cpp_in_titles():
     assert "cpp" in enrich.skills_of("C++ Developer Intern", "mle")
     assert "cpp" in enrich.skills_of("Low Latency Systems Engineer", "quant")
+
+
+def test_pack_jobs_round_trips():
+    jobs = [{"id": "a", "k": "internship", "t": "ML Intern", "c": "Acme", "l": ["SF"], "co": ["United States"], "r": False,
+             "tr": "mle", "s": ["pytorch"], "lv": "Undergrad", "u": "https://x", "d": 20000, "p": None, "src": "simplify", "dm": ""},
+            {"id": "b", "k": "internship", "t": "LLM Intern", "c": "Acme", "l": ["SF", "NYC"], "co": ["United States"], "r": True,
+             "tr": "llm", "s": [], "lv": "Undergrad", "u": "https://y", "d": 19999, "p": 50.0, "src": "simplify", "dm": "acme.com"}]
+    packed = pack_jobs(jobs, 0)
+    assert packed["strings"].count("Acme") == 1
+    keys, strings, str_keys = packed["keys"], packed["strings"], set(packed["strings_in"])
+    out = []
+    for row in packed["rows"]:
+        j = {}
+        for k, v in zip(keys, row):
+            j[k] = ([strings[x] for x in v] if isinstance(v, list) else strings[v]) if k in str_keys else v
+        j["r"] = bool(j["r"])
+        out.append(j)
+    assert out == jobs

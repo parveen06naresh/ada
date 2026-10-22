@@ -5,7 +5,7 @@ Every open AI, ML, data and quant internship and new-grad role in one place, ref
 Plus hackathons, fellowships and grants, a free roadmap built from what employers actually ask for,<br>and an AI coach that writes your personal 90-day plan.</p>
 
 <p align="center">
-<b>5,295</b> open roles · <b>1,693</b> companies · <b>581</b> posted this week · <b>43</b> programs · <b>$0</b> to run
+<b>5,339</b> open roles · <b>1,709</b> companies · <b>597</b> posted this week · <b>43</b> programs · <b>$0</b> to run
 </p>
 
 ![Explore view](docs/explore.png)
@@ -32,7 +32,13 @@ AI opportunities are scattered across a dozen GitHub trackers, job boards, unive
 
 ## Private by design
 
-There are no accounts and no server. Your profile, resume, saved roles and progress stay in your browser. If you use the AI coach, your key and prompt go from your browser straight to Anthropic, never to us. The whole site is static files on GitHub Pages, and a GitHub Action rebuilds the data every morning. Running it costs nothing.
+You never need an account. By default your profile, resume, saved roles and progress stay in your browser. If you use the AI coach, your key and prompt go from your browser straight to Anthropic, never to us. The whole site is static files on GitHub Pages, and a GitHub Action rebuilds the data every morning. Running it costs nothing.
+
+**Optional sync.** Sign in with GitHub or an email link to carry your saved roles, profile, resume and roadmap progress across devices. It runs on a free Supabase project with row-level security, so each person can read and write only their own row (`supabase/schema.sql`). Your API key and AI plans are never synced, and "Delete my cloud data" removes your row. Forks turn it on by filling in `site/config.js`; left empty, the sign-in button does not appear.
+
+## Fast on a phone
+
+The role list ships as a columnar file with every repeated string stored once (41% smaller), the newest 40 roles arrive first in a 10 KB file, and a service worker makes repeat visits instant and works offline. On a throttled "slow 4G" phone profile the first roles appear in about 1.7 seconds, down from 11.3.
 
 ## Run it locally
 

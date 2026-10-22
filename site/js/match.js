@@ -15,6 +15,23 @@ export const TRACKS = {
 
 export const today = (now = Date.now()) => Math.floor(now / 86400000);
 
+// Unpack the columnar opportunities.json written by pipeline/build.py (pack_jobs).
+export function unpackJobs(data) {
+  if (data.jobs) return data.jobs;
+  const { keys, strings, rows } = data;
+  const str = new Set(data.strings_in);
+  const deref = keys.map((k) => str.has(k));
+  return rows.map((row) => {
+    const j = {};
+    for (let i = 0; i < keys.length; i++) {
+      const v = row[i];
+      j[keys[i]] = deref[i] ? (Array.isArray(v) ? v.map((x) => strings[x]) : strings[v]) : v;
+    }
+    j.r = !!j.r;
+    return j;
+  });
+}
+
 export function filterJobs(jobs, q = {}, now = Date.now()) {
   const words = (q.text || "").toLowerCase().split(/\s+/).filter(Boolean);
   const t0 = today(now);
@@ -27,8 +44,8 @@ export function filterJobs(jobs, q = {}, now = Date.now()) {
     if (q.skill && q.skill !== "any" && !j.s.includes(q.skill)) return false;
     if (q.days && t0 - j.d > q.days) return false;
     if (words.length) {
-      const hay = `${j.t} ${j.c} ${j.l.join(" ")} ${TRACKS[j.tr] || ""}`.toLowerCase();
-      if (!words.every((w) => hay.includes(w))) return false;
+      j._hay ??= `${j.t} ${j.c} ${j.l.join(" ")} ${TRACKS[j.tr] || ""}`.toLowerCase();
+      if (!words.every((w) => j._hay.includes(w))) return false;
     }
     return true;
   });

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFileSync } from "node:fs";
-import { BADGES, checkIn, decodeProfile, encodeProfile, filterJobs, planRoadmap, recommend, scoreJob } from "../site/js/match.js";
+import { BADGES, checkIn, decodeProfile, encodeProfile, filterJobs, planRoadmap, recommend, scoreJob, unpackJobs } from "../site/js/match.js";
 
 const DAY = 864e5;
 const NOW = 20000 * DAY;
@@ -89,4 +89,31 @@ test("coach prompt carries the facts and markdown rendering is safe", async () =
   assert.ok(html.includes("<h3>Plan</h3>") && html.includes("<b>Do</b>") && html.includes('href="https://ok.example"'));
   assert.ok(!html.includes("<script>") && !html.includes('href="javascript'));
   assert.ok(html.includes("<ol><li>one</li></ol>"));
+});
+
+test("unpackJobs restores the columnar file written by the pipeline", () => {
+  const data = {
+    keys: ["id", "c", "l", "r", "s", "d"], strings_in: ["c", "l", "s"],
+    strings: ["Acme", "SF", "NYC", "pytorch"], rows: [["a", 0, [1, 2], 1, [3], 20000], ["b", 0, [], 0, [], 19999]],
+  };
+  assert.deepEqual(unpackJobs(data), [
+    { id: "a", c: "Acme", l: ["SF", "NYC"], r: true, s: ["pytorch"], d: 20000 },
+    { id: "b", c: "Acme", l: [], r: false, s: [], d: 19999 },
+  ]);
+  assert.deepEqual(unpackJobs({ jobs: [{ id: "x" }] }), [{ id: "x" }]);
+});
+
+test("mergeState never loses saved roles or finished steps", async () => {
+  const { mergeState } = await import("../site/js/sync.js");
+  const local = { saved: ["a"], profile: { hours: 5 }, progress: { mle: ["python"] }, streak: { streak: 1, best: 4 }, resume: "old", updated: 10 };
+  const remote = { saved: ["b"], profile: { hours: 20 }, progress: { mle: ["linalg"], llm: ["rag"] }, streak: { streak: 2, best: 2 }, resume: "new", updated: 20 };
+  const m = mergeState(local, remote);
+  assert.deepEqual(m.saved.sort(), ["a", "b"]);
+  assert.deepEqual(m.progress.mle.sort(), ["linalg", "python"]);
+  assert.deepEqual(m.progress.llm, ["rag"]);
+  assert.equal(m.profile.hours, 20);
+  assert.equal(m.resume, "new");
+  assert.equal(m.streak.best, 4);
+  assert.equal(m.updated, 20);
+  assert.equal(mergeState(local, null), local);
 });
