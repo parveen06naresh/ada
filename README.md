@@ -8,6 +8,8 @@ Plus hackathons, fellowships and grants, a free roadmap built from what employer
 <b>6,097</b> open roles · <b>1,784</b> companies · <b>409</b> posted this week · <b>100</b> programs · <b>$0</b> to run
 </p>
 
+<p align="center"><a href="https://parveen06naresh.github.io/ada/">Open Ada</a> · <a href="docs/paper/ada.pdf">Read the paper (PDF)</a></p>
+
 ![Explore view](docs/explore.png)
 
 ## Why

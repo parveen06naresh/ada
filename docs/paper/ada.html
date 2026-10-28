@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ada: An Open, Explainable Pipeline for Early-Career AI Opportunities</title>
+<style>
+  @page { size: Letter; margin: 0.8in 0.85in; }
+  body { font-family: "Times New Roman", "Liberation Serif", "DejaVu Serif", serif; font-size: 10.5pt; line-height: 1.38; color: #111; }
+  h1 { font-size: 17pt; text-align: center; margin: 0 0 6pt; line-height: 1.2; }
+  .authors { text-align: center; font-size: 10.5pt; margin-bottom: 14pt; }
+  .abstract { margin: 0 0.35in 12pt; font-size: 9.8pt; }
+  .abstract b { display: block; text-align: center; margin-bottom: 3pt; }
+  h2 { font-size: 12pt; margin: 14pt 0 4pt; break-after: avoid; }
+  h3 { font-size: 10.5pt; margin: 10pt 0 3pt; font-style: italic; break-after: avoid; }
+  p { margin: 0 0 6pt; text-align: justify; }
+  ul { margin: 0 0 6pt; padding-left: 18pt; }
+  li { margin-bottom: 2pt; text-align: justify; }
+  table { border-collapse: collapse; margin: 6pt auto 4pt; font-size: 9pt; break-inside: avoid; }
+  th, td { padding: 2pt 7pt; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  thead tr { border-top: 1.2pt solid #000; border-bottom: 0.6pt solid #000; }
+  tbody tr:last-child { border-bottom: 1.2pt solid #000; }
+  table.l td:last-child, table.l th:last-child { text-align: left; }
+  .cap { font-size: 9pt; text-align: center; margin: 2pt 0 10pt; }
+  figure { margin: 8pt 0; text-align: center; break-inside: avoid; }
+  figure img { width: 92%; border: 0.5pt solid #999; }
+  figure svg { width: 100%; }
+  .box { border: 0.6pt solid #444; padding: 6pt 9pt; margin: 6pt 0 8pt; break-inside: avoid; }
+  code, .mono { font-family: "DejaVu Sans Mono", monospace; font-size: 8.6pt; }
+  ol.refs { font-size: 9pt; padding-left: 16pt; }
+  ol.refs li { text-align: left; }
+</style>
+</head>
+<body>
+
+<h1>Ada: An Open, Explainable Pipeline for<br>Early-Career AI Opportunities</h1>
+<div class="authors">Parveen Kumar Naresh Kumar<br>University of South Florida<br><span class="mono">github.com/parveen06naresh/ada</span> · <span class="mono">parveen06naresh.github.io/ada</span></div>
+
+<div class="abstract"><b>Abstract</b>
+Students looking for AI, machine-learning, data and quantitative internships and new-graduate roles
+search across community-maintained trackers, employer applicant-tracking boards and scattered program
+pages, and the large platforms that aggregate them rank results with models the student cannot inspect.
+We describe <i>Ada</i>, a student open-source project that (i) merges six community tracker lists and 67
+employer boards into one daily-rebuilt dataset with a two-key deduplication rule, (ii) labels every role
+with a career track, skills, level and country using auditable rules, (iii) ranks roles for a profile with a
+points system in which every point is shown to the student as a written reason, (iv) reads application
+deadlines out of free-text program descriptions, and (v) ships the result as a static site with no server.
+On the build of 28 October 2026 the pipeline produced 6,097 unique roles from 1,784 companies plus 100
+curated programs. In an offline snapshot, deduplication removes 8.5% of AI-relevant rows; a 120-title audit
+of the role filter finds 82% precision on included titles and 95% agreement on excluded ones; ranking all
+roles takes 3.0&nbsp;ms (median) in Node.js; and a columnar data format cuts the first-paint time on a
+throttled slow-4G connection from 11.3&nbsp;s to 1.7&nbsp;s. We report the limitations plainly: the classifier is
+rule-based, the data skews to the United States, and we have not yet run a user study.
+</div>
+
+<h2>1&nbsp;&nbsp;Introduction</h2>
+<p>A student who wants an AI internship today does not lack listings; they lack a single trustworthy view
+of them. Community trackers on GitHub (SimplifyJobs, vanshb03, speedyapply) list thousands of roles each and
+overlap with one another. Many employers post first on their own Greenhouse, Lever or Ashby boards. Fellowships,
+hackathons and grants live on hundreds of separate pages whose deadlines are written as prose. General-purpose
+job platforms aggregate much of this, but their ranking is a black box: a student cannot ask <i>why</i> a role
+was recommended, or why another was hidden.</p>
+<p>Ada takes the opposite design point. Every stage is open source, rule-based where possible, and
+inspectable by the person it serves. The contributions are:</p>
+<ul>
+<li>A reproducible ingestion pipeline (Python standard library only) that unifies two very different source
+families, community trackers and employer boards, under one schema (§3).</li>
+<li>A two-key deduplication rule that catches the same role posted twice with different location strings,
+and measurements of how much the sources actually overlap (§4).</li>
+<li>Rule-based enrichment with a small manual audit, which found and fixed a real recall bug (§5).</li>
+<li>An explainable ranking function whose every score component is surfaced as a reason (§6), and a
+deadline extractor for programs (§7).</li>
+<li>A delivery design that serves all of it as static files with offline support and optional, row-level-secured
+accounts (§8).</li>
+</ul>
+
+<h2>2&nbsp;&nbsp;System overview</h2>
+<figure>
+<svg viewBox="0 0 680 120" xmlns="http://www.w3.org/2000/svg" font-family="Liberation Serif, Times New Roman, serif" font-size="12">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#111"/></marker></defs>
+  <g fill="none" stroke="#111" stroke-width="1">
+    <rect x="4" y="10" width="130" height="40"/><rect x="4" y="70" width="130" height="40"/>
+    <rect x="180" y="40" width="110" height="40"/><rect x="330" y="40" width="110" height="40"/>
+    <rect x="480" y="10" width="190" height="40"/><rect x="480" y="70" width="190" height="40"/>
+    <path d="M134,30 L178,55" marker-end="url(#a)"/><path d="M134,90 L178,65" marker-end="url(#a)"/>
+    <path d="M290,60 L328,60" marker-end="url(#a)"/>
+    <path d="M440,55 L478,32" marker-end="url(#a)"/><path d="M440,65 L478,88" marker-end="url(#a)"/>
+  </g>
+  <g fill="#111" text-anchor="middle">
+    <text x="69" y="27">6 tracker lists</text><text x="69" y="42" font-size="10">git clone, JSON / Markdown</text>
+    <text x="69" y="87">67 employer boards</text><text x="69" y="102" font-size="10">Greenhouse, Lever, Ashby</text>
+    <text x="235" y="57">normalise +</text><text x="235" y="72">deduplicate</text>
+    <text x="385" y="57">filter + enrich</text><text x="385" y="72" font-size="10">track, skills, level</text>
+    <text x="575" y="27">static data files (daily)</text><text x="575" y="42" font-size="10">columnar roles, programs, stats, RSS</text>
+    <text x="575" y="87">browser: ranking, roadmap</text><text x="575" y="102" font-size="10">reasons shown; state local-first</text>
+  </g>
+</svg>
+<div class="cap"><b>Figure 1.</b> Ada's pipeline. A GitHub Actions job rebuilds the data every day; all ranking runs in the browser.</div>
+</figure>
+<p>Ada has no application server. A scheduled GitHub Actions workflow clones the trackers, reads the employer boards
+through their public JSON APIs, runs the build, and publishes the site and its data files to GitHub Pages. The
+browser downloads the data once, then filters, ranks and plans locally. A student's profile, saved roles and
+roadmap progress stay in the browser unless they choose to sign in (§8).</p>
+
+<h2>3&nbsp;&nbsp;Data sources and schema</h2>
+<p><b>Community trackers.</b> Ada reads the 2027 internship and new-graduate lists maintained by SimplifyJobs and
+vanshb03 (machine-readable <code>listings.json</code>) and two speedyapply repositories (AI and software, published
+as Markdown tables, which Ada parses). Each tracker has its own category names, date format and location style.</p>
+<p><b>Employer boards.</b> Greenhouse, Lever and Ashby each expose a public, unauthenticated endpoint listing a
+company's open jobs. Ada keeps a curated list of boards (AI labs, chip and infrastructure companies, robotics and
+autonomy firms, trading firms) and classifies each posting as internship, new-grad or neither from its title,
+excluding senior titles. Of 82 boards tried, 15 no longer answered and were removed; 67 are read on every build.</p>
+<p><b>Schema.</b> Every source is mapped to one record: title, company, locations, kind (internship or new-grad), URL,
+posting time, pay text and source name. Downstream code never sees source-specific fields, so a new source is one
+parser function plus a test.</p>
+<table>
+<thead><tr><th>Snapshot</th><th>Raw rows</th><th>AI-relevant</th><th>Unique roles</th><th>Companies</th></tr></thead>
+<tbody>
+<tr><td>Offline, trackers only (§4–6 analyses)</td><td>15,042</td><td>6,442</td><td>5,897</td><td>1,819</td></tr>
+<tr><td>Production build, trackers + 67 boards</td><td>—</td><td>—</td><td>6,097</td><td>1,784</td></tr>
+</tbody></table>
+<div class="cap"><b>Table 1.</b> Dataset size. The production figures come from the 28 Oct 2026 build log. Employer boards could not be fetched
+from our analysis sandbox, so the detailed analyses use the tracker-only snapshot. Company counts are of raw company names
+and differ slightly between snapshots because name spellings vary by source.</div>
+
+<h2>4&nbsp;&nbsp;Deduplication</h2>
+<p>The same role routinely appears on several trackers, and sometimes twice in one tracker. A naive key on
+<i>company + title</i> wrongly merges distinct roles (one company may post "Machine Learning Intern" in three
+cities). A key on <i>company + title + first location</i> keeps those apart but misses duplicates whose location is
+written differently ("San Francisco, CA" vs. "SF").</p>
+<p>Ada therefore uses two keys. The primary key is <i>company | title | first location</i>, normalised for case and
+whitespace. The secondary key replaces the location with the application URL after stripping tracking parameters
+(<code>utm_*</code>, <code>gh_src</code>, <code>ref</code> and similar) while keeping meaningful query parameters such as job IDs.
+A row merges into an existing role if either key matches. On a merge Ada keeps the earliest posting date and any
+pay it has seen.</p>
+<p>An earlier version keyed on the URL alone and broke a regression test: distinct roles that share one generic
+careers-page URL were merged. Including company and title in the secondary key fixed it.</p>
+<table>
+<thead><tr><th>Measure (offline snapshot)</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>AI-relevant rows before deduplication</td><td>6,442</td></tr>
+<tr><td>Unique roles after deduplication</td><td>5,893 (−8.5%)</td></tr>
+<tr><td>Roles listed by two or more sources</td><td>182 (3.1%)</td></tr>
+<tr><td>Merges found only by the URL key</td><td>47</td></tr>
+</tbody></table>
+<div class="cap"><b>Table 2.</b> Overlap. Most duplicates are within-source repeats; cross-source overlap is small, which means each tracker
+adds coverage the others miss. (Measured before the §5 fix, which adds 4 roles.)</div>
+
+<h2>5&nbsp;&nbsp;Filtering and enrichment</h2>
+<p><b>Is it an AI role?</b> A row is kept if its title matches an AI vocabulary (machine learning, LLM, computer vision,
+robotics, inference, quant and similar) or if the tracker filed it under an AI, data or quant category <i>and</i> its title
+is about data or research. The second condition exists because trackers file many plain software roles under
+"AI/ML/Data". Of 15,042 raw rows, 6,442 pass.</p>
+<p><b>Audit.</b> We drew 60 random titles the filter kept and 60 it dropped (seed 7) and labelled each by hand as in or out of
+scope (AI, ML, data science and analytics, data engineering, quant). This is a single-annotator audit by the author, so it is a
+sanity check rather than a benchmark.</p>
+<table class="l">
+<thead><tr><th>Sample</th><th>n</th><th>Correct</th><th>Errors</th></tr></thead>
+<tbody>
+<tr><td>Kept by filter (precision)</td><td>60</td><td>49 (82%)</td><td>11 off-scope, e.g. "Economist", "Reimbursement Analyst Intern", AI product and venture roles</td></tr>
+<tr><td>Dropped by filter</td><td>60</td><td>57 (95%)</td><td>3 missed: "MLOps Engineer", "Healthcare Analytics Intern", "Manufacturing Data Analyst"</td></tr>
+</tbody></table>
+<div class="cap"><b>Table 3.</b> Hand audit of the role filter.</div>
+<p>The audit found a real bug: "MLOps" has no word boundary before "Ops", so the <code>ml</code> pattern never matched it. Adding
+<code>mlops</code> to the vocabulary, with a regression test, recovers 4 roles in the snapshot. The false positives are mostly
+tracker-category noise (non-technical roles filed as AI/ML/Data), the clearest target for future work (§10).</p>
+<p><b>Enrichment.</b> Each kept role receives one of ten career tracks (e.g. ML Engineer, LLM &amp; GenAI Engineer, AI Infrastructure
+&amp; GPU Engineer, Quant Researcher) from ordered title rules; a set of skills that can honestly be read from the title and track;
+a level (undergraduate, master's, PhD); normalised countries; a remote flag; and an hourly pay figure when the source states one.
+Pay is stated for only 6.7% of roles, and the United States accounts for 70% of them (Table 4).</p>
+<table>
+<thead><tr><th>Field</th><th>Coverage / distribution</th></tr></thead>
+<tbody>
+<tr><td>Kind</td><td>3,395 internships, 2,498 new-grad</td></tr>
+<tr><td>Largest tracks</td><td>ML Engineer 1,610 · Data Scientist 1,506 · Research Scientist 934 · Quant 422</td></tr>
+<tr><td>Country</td><td>United States 70% · United Kingdom 7% · Canada 4% · Singapore 3%</td></tr>
+<tr><td>Remote</td><td>3.4%</td></tr>
+<tr><td>Pay stated</td><td>6.7%</td></tr>
+</tbody></table>
+<div class="cap"><b>Table 4.</b> What the enriched data looks like (offline snapshot, 5,893 roles).</div>
+
+<h2>6&nbsp;&nbsp;Explainable ranking</h2>
+<p>A student's profile holds target tracks (in order), known skills, the kind of role wanted, level, countries and whether
+remote is acceptable. Ada scores each role by adding points, and each point that helps comes with a sentence the student sees:</p>
+<table class="l">
+<thead><tr><th>Component</th><th>Points</th><th>Reason shown</th></tr></thead>
+<tbody>
+<tr><td>Role's track is the first goal / another goal</td><td>+4 / +3</td><td>"Your goal: LLM &amp; GenAI Engineer"</td></tr>
+<tr><td>Share of the role's core skills the student knows</td><td>up to +2</td><td>"You know 2 of 3 core skills"</td></tr>
+<tr><td>Kind matches / does not match</td><td>+1.5 / −3</td><td>—</td></tr>
+<tr><td>Level matches / PhD role for a non-PhD</td><td>+1 / −2</td><td>"Fits Undergrad"</td></tr>
+<tr><td>In a chosen country, or remote if allowed / neither</td><td>+1 / −2</td><td>"In United States", "Remote"</td></tr>
+<tr><td>Posted within 7 / 30 days; older than 90</td><td>+1 / +0.4; −0.5</td><td>"Posted this week"</td></tr>
+<tr><td>Pay is stated</td><td>+0.2</td><td>—</td></tr>
+</tbody></table>
+<div class="cap"><b>Table 5.</b> The ranking function. Roles scoring 2 or less are not recommended; ties go to the newer role.</div>
+<p>The weights are hand-set, not learned; the point of the design is that a student can read the table, disagree with it, and
+change their profile to see the effect. For a sample profile (goals LLM then ML Engineer; knows Python, PyTorch, statistics;
+undergraduate internship in the United States, remote acceptable), the top result was an agentic-AI engineering internship at
+9.5 points with five stated reasons. Python is excluded from the skill-match ratio because nearly every role asks for it and it
+would inflate every score equally.</p>
+<p><b>Speed.</b> Over the 5,893-role snapshot in Node.js 22, decoding the data file takes 6.4&nbsp;ms, ranking every role takes
+3.0&nbsp;ms median (7.2&nbsp;ms at the 95th percentile, 50 runs), and a free-text search filter takes 0.4&nbsp;ms, so the interface
+can re-rank on every keystroke without a server.</p>
+<p><b>Weekly digest.</b> The same function, restricted to roles posted in the last seven days, produces an optional weekly email of
+the ten best new matches, so the email and the website can never disagree about what "a match" means.</p>
+
+<h2>7&nbsp;&nbsp;Programs and deadline extraction</h2>
+<p>Alongside roles, Ada lists 100 curated fellowships, research programs, hackathons, competitions and grants, grown from 43 to 100
+with an outside contributor's reviewed pull request. Deadlines are usually written as prose ("Apply by January 11, 2027";
+"Register by January 31; round on February 19"). Ada reads a deadline only when a date follows a closing phrase:
+<i>apply/register/submit … by/before</i>, <i>applications due/close</i>, or <i>deadline</i>. A date written without a year
+takes the year that puts it closest to the build date. An explicit <code>deadline</code> field always wins.</p>
+<p>The narrow pattern is deliberate. An earlier, looser version read "Apply November 1–30" and "apply December 15 … to
+February 15" as deadlines and produced wrong dates; requiring "by" or "before" removed both errors. The cost is recall:
+16 of the 100 programs currently yield a deadline. Programs whose deadline has passed are hidden, and those closing within 21
+days carry a "Closes in N days" tag. We prefer a missing deadline to a wrong one, because a wrong date can make a student miss
+an application.</p>
+
+<h2>8&nbsp;&nbsp;Delivery, privacy and accounts</h2>
+<figure>
+<img src="fig-explore.png" alt="Ada's Explore page">
+<div class="cap"><b>Figure 2.</b> Ada's Explore page, rendered from the offline snapshot.</div>
+</figure>
+<p><b>Data format.</b> The role file is columnar: field names are stored once, and every repeated string (company, location,
+track, skill) is stored once in a string table and referenced by index. This makes the file 41% smaller than the equivalent
+array of objects (1.31&nbsp;MB vs. 2.22&nbsp;MB, before HTTP compression). A separate 11&nbsp;KB file holds the newest 40 roles so the
+page shows real results before the full file arrives, and a service worker serves the app shell from cache on repeat visits and
+offline. In headless Chromium with a throttled slow-4G profile, the first roles appeared after 1.7&nbsp;s, down from 11.3&nbsp;s
+before these changes.</p>
+<p><b>Privacy.</b> Ada works fully without an account: the profile, saved roles, roadmap progress and an optional pasted resume
+stay in the browser, and a profile can be shared as a URL fragment that never reaches a server. Optional sign-in syncs that
+state across devices through Supabase; a row-level-security policy lets each signed-in user read and write only their own row,
+so the public client key is safe to publish. The weekly email is opt-in, and each digest carries a random 36-character token
+for one-click unsubscribe through a database function that does not require signing in.</p>
+<p><b>Operations.</b> The whole build runs in about half a second of CPU time on the offline snapshot (0.2&nbsp;s to read sources,
+0.3&nbsp;s to build) plus network time to fetch sources. A weekly link checker opens an issue when program links break, and
+16 Python and 10 JavaScript tests run on every push.</p>
+
+<h2>9&nbsp;&nbsp;Related work</h2>
+<p>Community trackers [1–3] are the backbone of student job search in computing and are what Ada builds on; Ada's contribution
+is to unify, deduplicate and enrich them rather than to replace them. Employer applicant-tracking systems [4–6] publish structured
+public feeds that most student tools do not read. Commercial platforms aggregate far more data than Ada, but their ranking is
+proprietary; Ada trades scale and learned relevance for a ranking a student can audit. Our explainable scoring is closer in
+spirit to transparent, rule-based recommenders than to learned ranking.</p>
+
+<h2>10&nbsp;&nbsp;Limitations and future work</h2>
+<ul>
+<li><b>Rule-based classification.</b> Precision of 82% on kept titles means roughly one in five listings is off-scope. A small
+classifier trained on hand labels, or a model that reads the full job description, is the next step, evaluated with more than
+one annotator.</li>
+<li><b>No user study.</b> We have not measured whether Ada helps students apply to better-matched roles. The ranking weights
+are untested beyond inspection.</li>
+<li><b>Coverage skew.</b> Seventy percent of roles are in the United States, pay is rarely stated, and coverage depends on
+volunteer trackers and on boards staying public.</li>
+<li><b>Deadlines.</b> Only 16 of 100 programs yield a machine-readable deadline; the rest need a curated date.</li>
+</ul>
+
+<h2>11&nbsp;&nbsp;Conclusion</h2>
+<p>Ada shows that a useful, explainable search tool for early-career AI roles can run on free infrastructure with no server:
+a daily build that unifies trackers and employer boards, rules that a student can read, and a ranking that explains every
+point. The code, data and tests are open at <span class="mono">github.com/parveen06naresh/ada</span>.</p>
+
+<h2>References</h2>
+<ol class="refs">
+<li>SimplifyJobs. Summer 2027 Tech Internships and New-Grad Positions. github.com/SimplifyJobs</li>
+<li>vanshb03. Summer2027-Internships and New-Grad-2027. github.com/vanshb03</li>
+<li>speedyapply. 2027-AI-College-Jobs and 2027-SWE-College-Jobs. github.com/speedyapply</li>
+<li>Greenhouse. Job Board API. developers.greenhouse.io/job-board.html</li>
+<li>Lever. Postings API. github.com/lever/postings-api</li>
+<li>Ashby. Public Job Posting API. developers.ashbyhq.com</li>
+<li>Supabase. Row Level Security. supabase.com/docs/guides/database/postgres/row-level-security</li>
+</ol>
+
+</body>
+</html>
