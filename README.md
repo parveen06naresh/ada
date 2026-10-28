@@ -5,7 +5,7 @@ Every open AI, ML, data and quant internship and new-grad role in one place, ref
 Plus hackathons, fellowships and grants, a free roadmap built from what employers actually ask for,<br>and an AI coach that writes your personal 90-day plan.</p>
 
 <p align="center">
-<b>5,339</b> open roles · <b>1,709</b> companies · <b>597</b> posted this week · <b>43</b> programs · <b>$0</b> to run
+<b>5,339</b> open roles · <b>1,709</b> companies · <b>597</b> posted this week · <b>100</b> programs · <b>$0</b> to run
 </p>
 
 ![Explore view](docs/explore.png)
@@ -22,7 +22,7 @@ AI opportunities are scattered across a dozen GitHub trackers, job boards, unive
 | **For you** | Fill in a 30-second profile, or paste your resume and Ada reads your skills on your device. It ranks roles for you and shows the reason for every match ("Your goal: LLM Engineer · You know 2 of 3 core skills · Posted this week"). |
 | **AI coach** | Bring your own Anthropic API key and Claude writes your 90-day plan from your resume, your roadmap and today's best-matching openings: three portfolio projects, the roles to apply to now, and resume fixes. About 10 to 20 cents a plan, paid on your own key. |
 | **Roadmap** | Pick one of 10 career tracks. Get a week-by-week plan in prerequisite order, with free courses from Stanford, MIT, fast.ai and Karpathy, a portfolio project for every step, and how much the market asks for each skill. Track progress, keep a streak, earn badges, share your roadmap as a link. |
-| **Programs** | 43 hand-picked hackathons, competitions, fellowships, research programs, grants, startup accelerators and free-compute programs. |
+| **Programs** | 100 hand-picked hackathons, competitions, fellowships, research programs, grants, startup accelerators and free-compute programs. |
 | **Trends** | New roles per week, open roles by track, the skills employers ask for, the best-paying roles that publish pay, who is hiring most, and where. |
 | **Weekly digest** | An RSS feed of new roles, plus a one-click "copy my weekly digest" of your best new matches. |
 | **Saved** | Star roles and export them to CSV for your application tracker. |
@@ -86,6 +86,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 * Coverage is only as good as the public trackers. They focus on North America and on internships and new-grad roles.
 * Pay is published for only a few hundred roles, mostly at large US companies.
 * Program dates and amounts change. Always check the official page.
+
+## Contributors
+
+* [Rick](https://github.com/Rick-R100) grew the Programs list from 43 to 100.
 
 ## License
 
