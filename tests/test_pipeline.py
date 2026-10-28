@@ -43,6 +43,7 @@ def test_ai_filter():
     assert enrich.is_ai("Machine Learning Intern", "Software")
     assert enrich.is_ai("Data Engineer", "AI/ML/Data")
     assert not enrich.is_ai("Accounting Intern", "AI/ML/Data")
+    assert enrich.is_ai("MLOps Engineer", "AI/ML/Data") and enrich.is_ai("MLOps Intern", "")
     assert not enrich.is_ai("Frontend Engineer", "Software")
 
 

@@ -25,7 +25,7 @@ _TRACK_RE = [(k, re.compile(rx, re.I)) for k, _, rx in TRACKS]
 
 # A posting is "AI" if the tracker filed it as AI/ML/Data or Quant, or its title says so.
 AI_TITLE = re.compile(
-    r"\b(ai|a\.i\.|ml|machine learning|artificial intelligence|applied scien\w*|deep learning|llm|genai|gen ai|generative|nlp|computer vision|vision|"
+    r"\b(ai|a\.i\.|ml|mlops|machine learning|artificial intelligence|applied scien\w*|deep learning|llm|genai|gen ai|generative|nlp|computer vision|vision|"
     r"data scien\w*|neural|reinforcement|robot\w*|autonom\w*|perception|gpu|cuda|inference|research scientist|"
     r"quant\w*|speech|recommend\w*|foundation model|agent(s|ic)?)\b",
     re.I,
