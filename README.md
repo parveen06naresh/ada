@@ -5,7 +5,7 @@ Every open AI, ML, data and quant internship and new-grad role in one place, ref
 Plus hackathons, fellowships and grants, a free roadmap built from what employers actually ask for,<br>and an AI coach that writes your personal 90-day plan.</p>
 
 <p align="center">
-<b>5,893</b> open roles · <b>1,819</b> companies · <b>409</b> posted this week · <b>100</b> programs · <b>$0</b> to run
+<b>6,097</b> open roles · <b>1,784</b> companies · <b>409</b> posted this week · <b>100</b> programs · <b>$0</b> to run
 </p>
 
 ![Explore view](docs/explore.png)
@@ -62,7 +62,7 @@ public trackers ──► pipeline/sources.py ──► pipeline/enrich.py ─�
                                              country, pay                                    stats
 ```
 
-* **Sources.** Roles come straight from the public job boards of 80+ AI employers (Greenhouse, Lever and Ashby, listed in `pipeline/curated/boards.json`) and from the public trackers by [SimplifyJobs](https://github.com/SimplifyJobs/Summer2027-Internships) ([new grad](https://github.com/SimplifyJobs/New-Grad-Positions)), [speedyapply](https://github.com/speedyapply/2027-AI-College-Jobs) ([SWE](https://github.com/speedyapply/2027-SWE-College-Jobs)) and [vanshb03](https://github.com/vanshb03/Summer2027-Internships) ([new grad](https://github.com/vanshb03/New-Grad-2027)). Ada links straight to each employer's posting. Thank you to their maintainers.
+* **Sources.** Roles come straight from the public job boards of 67 AI employers (Greenhouse, Lever and Ashby, listed in `pipeline/curated/boards.json`) and from the public trackers by [SimplifyJobs](https://github.com/SimplifyJobs/Summer2027-Internships) ([new grad](https://github.com/SimplifyJobs/New-Grad-Positions)), [speedyapply](https://github.com/speedyapply/2027-AI-College-Jobs) ([SWE](https://github.com/speedyapply/2027-SWE-College-Jobs)) and [vanshb03](https://github.com/vanshb03/Summer2027-Internships) ([new grad](https://github.com/vanshb03/New-Grad-2027)). Ada links straight to each employer's posting. Thank you to their maintainers.
 * **Tagging.** Every rule is a readable regex in `pipeline/enrich.py`, so anyone can fix a misfiled role. Skills are read from job titles and role type, because the trackers do not publish full descriptions.
 * **Matching.** A transparent points system in `site/js/match.js`. Every point comes with the reason shown on the card. No black box.
 * **AI coach.** `site/js/coach.js` sends one request to Claude with the official Anthropic SDK, using the visitor's key. The prompt contains only facts from the page (profile, roadmap, live postings), and the model is told not to invent links or companies.
