@@ -94,6 +94,12 @@ export function recommend(jobs, profile, n = 30, now = Date.now()) {
     .slice(0, n);
 }
 
+// The weekly email: your best matches among roles posted in the last 7 days.
+export function weeklyMatches(jobs, profile, n = 10, now = Date.now()) {
+  const t0 = today(now);
+  return recommend(jobs.filter((j) => t0 - j.d <= 7), profile, n, now);
+}
+
 // Roadmap: the skills a track needs, in prerequisite order, minus what you know, laid out in weeks.
 export function planRoadmap(graph, track, known = [], hoursPerWeek = 8, demand = {}) {
   const byId = Object.fromEntries(graph.skills.map((s) => [s.id, s]));

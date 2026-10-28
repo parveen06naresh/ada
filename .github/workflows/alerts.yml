@@ -1,0 +1,39 @@
+# Emails each subscriber their best new matches every Monday.
+# Needs repo secrets: SUPABASE_URL, SUPABASE_SERVICE_KEY, SMTP_HOST, SMTP_USER, SMTP_PASS, ALERT_FROM
+# (SMTP_PORT optional). Without them it runs and sends nothing.
+name: weekly-alerts
+on:
+  schedule:
+    - cron: "0 14 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Fetch roles
+        run: bash pipeline/fetch.sh .sources
+      - name: Build data
+        run: python -m pipeline.build --src .sources --out site/data
+      - name: Build digests
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SITE_URL: "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+        run: mkdir -p out && node pipeline/alerts.mjs site/data/opportunities.json out/alerts.json
+      - name: Send
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          ALERT_FROM: ${{ secrets.ALERT_FROM }}
+        run: python -m pipeline.send_alerts out/alerts.json

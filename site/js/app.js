@@ -513,7 +513,25 @@ function initAccount() {
     $("#acct-out").hidden = !!user; $("#acct-in").hidden = !user;
     $("#acct-who").textContent = user?.email || "";
     $("#profile-note").textContent = user ? "Synced to your account, so it follows you to any device." : "Stays in your browser. Nothing is sent anywhere.";
+    $("#p-alerts").checked = !!(user && state.profile.alerts);
+    $("#alerts-note").textContent = user ? `Sent to ${user.email}. One email a week, unsubscribe in one click.` : "Free. Sign in with your email to turn it on.";
   };
+  $("#alerts-box").hidden = false;
+  $("#p-alerts").addEventListener("change", (e) => {
+    if (!sync.currentUser()) { e.target.checked = false; dlg.showModal(); return; }
+    const p = state.profile;
+    p.alerts = e.target.checked;
+    if (p.alerts && !p.alertToken) p.alertToken = Array.from(crypto.getRandomValues(new Uint8Array(18)), (b) => b.toString(16).padStart(2, "0")).join("");
+    store.set("profile", p);
+    toast(p.alerts ? "Done. Your first email comes Monday." : "Weekly emails turned off");
+  });
+  const unsub = new URLSearchParams(location.search).get("unsubscribe");
+  if (unsub) {
+    sync.unsubscribe(unsub)
+      .then((ok) => toast(ok ? "You're unsubscribed. No more weekly emails." : "That unsubscribe link has already been used."))
+      .catch(() => toast("Could not unsubscribe. Try again, or turn emails off in For you."));
+    history.replaceState(null, "", location.pathname + location.hash);
+  }
   btn.addEventListener("click", () => dlg.showModal());
   $("#acct-email-go").addEventListener("click", async () => {
     const email = $("#acct-email").value.trim();
@@ -582,7 +600,7 @@ async function boot() {
   $("#more").addEventListener("click", () => { state.shown += 60; renderExplore(); });
   $("#share-search").addEventListener("click", () => copy(`${location.origin}${location.pathname}?${searchParams()}#explore`, "Search link copied"));
   $("#profile").addEventListener("input", (e) => {
-    if (e.target.id === "p-resume") return;
+    if (e.target.id === "p-resume" || e.target.id === "p-alerts") return;
     if (e.target.id === "p-hours") $("#p-hours-out").value = e.target.value;
     readProfile();
     renderForYou();

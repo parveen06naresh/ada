@@ -252,3 +252,5 @@ textarea { width: 100%; min-width: 0; background: var(--bg2); color: var(--text)
 .dlg .coach-row input { flex: 1; min-width: 0; }
 .link.danger { color: #f87171; margin-left: 12px; }
 .tag.soon { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); border-color: transparent; font-weight: 600; }
+.alerts { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+.muted.small { font-size: 12px; margin: 0; }

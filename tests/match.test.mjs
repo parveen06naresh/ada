@@ -117,3 +117,17 @@ test("mergeState never loses saved roles or finished steps", async () => {
   assert.equal(m.updated, 20);
   assert.equal(mergeState(local, null), local);
 });
+
+test("weekly digest lists only this week's matches and carries an unsubscribe link", async () => {
+  const { digest } = await import("../pipeline/alerts.mjs");
+  const jobs = [job({ id: "new", t: "LLM Engineer Intern", tr: "llm", d: 20000 }), job({ id: "old", t: "LLM Research Intern", tr: "llm", d: 19950 })];
+  const profile = { tracks: ["llm"], kind: "internship", level: "Undergrad", countries: [], remoteOk: true, known: ["python"], alertToken: "tok_123456789012345678" };
+  const m = digest("a@b.co", profile, jobs, NOW);
+  assert.equal(m.to, "a@b.co");
+  assert.match(m.subject, /^1 new LLM/);
+  assert.match(m.text, /LLM Engineer Intern/);
+  assert.doesNotMatch(m.text, /LLM Research Intern/);
+  assert.match(m.unsubscribe, /\?unsubscribe=tok_123456789012345678$/);
+  assert.match(m.html, /Unsubscribe<\/a>/);
+  assert.equal(digest("a@b.co", { ...profile, tracks: ["quant"], known: [] }, [], NOW), null);
+});

@@ -81,6 +81,13 @@ export async function signInWithGitHub() {
   if (error) throw error;
 }
 
+// One-click unsubscribe from the link in a weekly email; works without signing in.
+export async function unsubscribe(token) {
+  const { data, error } = await (await getClient()).rpc("ada_unsubscribe", { token });
+  if (error) throw error;
+  return data === true;
+}
+
 export async function signOut() { await (await getClient()).auth.signOut(); }
 
 export async function deleteMyData() {
