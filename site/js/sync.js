@@ -1,11 +1,14 @@
 // Optional sign-in that syncs your saved roles, profile, progress and streak across devices.
 // Off unless site/config.js sets a Supabase project. Ada works fully without it.
 // Your API key and AI plans never leave the device. Schema and row-level security: supabase/schema.sql.
-import { SUPABASE_URL, SUPABASE_KEY } from "../config.js";
+import * as config from "../config.js";
+
+const { SUPABASE_URL, SUPABASE_KEY, GITHUB_LOGIN } = config;
 
 const SDK_URL = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
 export const SYNCED = ["saved", "profile", "progress", "streak", "resume"];
 export const enabled = Boolean(SUPABASE_URL && SUPABASE_KEY);
+export const github = Boolean(GITHUB_LOGIN);
 
 // Combine two copies of a visitor's state without losing work: saved roles and finished
 // roadmap steps are unions; profile, resume and streak come from whichever copy changed last.

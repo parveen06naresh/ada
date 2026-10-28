@@ -539,6 +539,7 @@ function initAccount() {
     try { await sync.signInWithEmail(email); $("#acct-msg").textContent = `Check ${email} for a sign-in link.`; }
     catch (e) { $("#acct-msg").textContent = `Could not send the link: ${e.message}`; }
   });
+  $("#acct-github").hidden = !sync.github;
   $("#acct-github").addEventListener("click", () => sync.signInWithGitHub().catch((e) => { $("#acct-msg").textContent = e.message; }));
   $("#acct-signout").addEventListener("click", async () => { await sync.signOut(); dlg.close(); toast("Signed out. Your data stays on this device."); });
   $("#acct-delete").addEventListener("click", async () => {
