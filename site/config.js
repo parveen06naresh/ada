@@ -8,3 +8,7 @@ export const SUPABASE_KEY = "sb_publishable_Ld2z0pZDYIkscU0QQ-Yi5w_lBbJyOU7";
 export const GITHUB_LOGIN = false;
 // Set to true after enabling the Google provider in Supabase (needs a Google Cloud OAuth client).
 export const GOOGLE_LOGIN = false;
+// Set to true once Supabase sends sign-in email through your own SMTP sender (Brevo). Until then
+// Supabase only emails its project's team, so Ada keeps every feature open instead of asking
+// students to sign up with a link that would never arrive.
+export const EMAIL_READY = false;

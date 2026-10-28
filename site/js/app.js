@@ -52,7 +52,7 @@ const state = {
 /* ---------- Free account gate ---------- */
 // Browsing and your Ada score are open to everyone. The full match list, the skill plan, saving,
 // tracking and weekly email need a free account. If sign-in can't load, nothing is locked.
-const locked = () => sync.enabled && sync.authStatus() !== "off" && !sync.currentUser();
+const locked = () => sync.gate && sync.authStatus() !== "off" && !sync.currentUser();
 const ASKS = {
   signup: ["Create your free Ada account", "One account turns Ada from a job list into your job search."],
   login: ["Welcome back", "Enter the email you signed up with and we'll send you a one-tap sign-in link. No password."],

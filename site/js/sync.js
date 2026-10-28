@@ -4,13 +4,15 @@
 // Your API key and AI plans never leave the device. Schema and row-level security: supabase/schema.sql.
 import * as config from "../config.js";
 
-const { SUPABASE_URL, SUPABASE_KEY, GITHUB_LOGIN, GOOGLE_LOGIN } = config;
+const { SUPABASE_URL, SUPABASE_KEY, GITHUB_LOGIN, GOOGLE_LOGIN, EMAIL_READY } = config;
 
 const SDK_URL = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
 export const SYNCED = ["saved", "profile", "progress", "streak", "resume", "tracker"];
 export const enabled = Boolean(SUPABASE_URL && SUPABASE_KEY);
 export const github = Boolean(GITHUB_LOGIN);
 export const google = Boolean(GOOGLE_LOGIN);
+// Features lock behind an account only when people can actually get in.
+export const gate = enabled && Boolean(EMAIL_READY || GITHUB_LOGIN || GOOGLE_LOGIN);
 
 // Combine two copies of a visitor's state without losing work: saved roles and finished
 // roadmap steps are unions; each tracked application keeps its latest status; profile, resume and
