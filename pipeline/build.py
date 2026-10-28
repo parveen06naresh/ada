@@ -20,6 +20,7 @@ import shutil
 import statistics
 import time
 from collections import Counter
+from datetime import date, datetime, timezone
 from email.utils import formatdate
 from xml.sax.saxutils import escape
 
@@ -38,14 +39,29 @@ def _key(j: dict) -> str:
     return f"{norm(j['company'])}|{norm(j['title'])}|{norm((j['locations'] or [''])[0])}"
 
 
+TRACKING = re.compile(r"^(utm_\w+|ref|refs|source|src|gh_src|lever-source|s)$", re.I)
+
+
+def _url_key(url: str) -> str:
+    """The posting's address without tracking parameters, so two trackers linking one job match."""
+    base, _, query = url.split("#")[0].partition("?")
+    keep = sorted(p for p in query.split("&") if p and not TRACKING.match(p.split("=")[0]))
+    base = re.sub(r"^https?://(www\.)?", "", base).rstrip("/").lower()
+    return base + ("?" + "&".join(keep) if keep else "")
+
+
 def build_jobs(raw: list[dict]) -> list[dict]:
     # Company websites (for logos) come from trackers that publish them; reuse across sources by name.
     domains = {j["company"].lower(): j["domain"] for j in raw if j.get("domain")}
     seen: dict[str, dict] = {}
+    by_url: dict[str, str] = {}
     for j in raw:
         if not enrich.is_ai(j["title"], j["category"]):
             continue
         k = _key(j)
+        u = k.rsplit("|", 1)[0] + "|" + _url_key(j["url"])  # same role and link, location written differently
+        if k not in seen and u in by_url:
+            k = by_url[u]
         pay = enrich.pay_per_hour(j.get("pay", ""))
         if k in seen:  # same role on two trackers: keep the earliest date and any pay we saw
             old = seen[k]
@@ -55,6 +71,7 @@ def build_jobs(raw: list[dict]) -> list[dict]:
         track = enrich.track_of(j["title"], j["category"])
         locs = j["locations"][:6]
         countries = sorted({enrich.country_of(l) for l in locs}) or ["Unknown"]
+        by_url.setdefault(u, k)
         seen[k] = {
             "id": hashlib.sha1(k.encode()).hexdigest()[:10],
             "k": j["kind"],
@@ -103,6 +120,29 @@ def pack_jobs(jobs: list[dict], now: float) -> dict:
         rows.append(row)
     return {"fields": FIELDS, "keys": keys, "strings_in": list(STRING_FIELDS), "updated": int(now),
             "strings": strings, "rows": rows}
+
+
+MONTHS = {m: i + 1 for i, m in enumerate(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"])}
+DEADLINE = re.compile(r"\b(?:(?:apply|register|submit)\w*\s+(?:by|before)|applications? (?:due|close)\w*(?:\s+on)?|deadline:?)\s+"
+                      r"([A-Za-z]{3,9})\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s*(\d{4}))?", re.I)
+
+
+def deadline_of(p: dict, now: float) -> str:
+    """YYYY-MM-DD the application closes: the program's own "deadline" field, else read from its timing text.
+    A date written without a year gets the year that puts it closest to today."""
+    if p.get("deadline"):
+        return p["deadline"]
+    m = DEADLINE.search(p.get("timing", ""))
+    if not m or m.group(1)[:3].lower() not in MONTHS:
+        return ""
+    month, day = MONTHS[m.group(1)[:3].lower()], int(m.group(2))
+    today = datetime.fromtimestamp(now, timezone.utc).date()
+    years = [int(m.group(3))] if m.group(3) else [today.year - 1, today.year, today.year + 1]
+    try:
+        best = min((date(y, month, day) for y in years), key=lambda d: abs((d - today).days))
+    except ValueError:
+        return ""
+    return best.isoformat()
 
 
 def build_stats(jobs: list[dict], programs: list[dict], now: float) -> dict:
@@ -170,6 +210,8 @@ def main(argv=None) -> None:
     dump = lambda name, obj: json.dump(obj, open(os.path.join(a.out, name), "w"), separators=(",", ":"))  # noqa: E731
     dump("opportunities.json", pack_jobs(jobs, now))
     dump("latest.json", pack_jobs(jobs[:40], now))  # newest roles, shown while the full list loads
+    for p in programs:
+        p["dl"] = deadline_of(p, now)
     dump("programs.json", programs)
     dump("stats.json", build_stats(jobs, programs, now))
     shutil.copy(os.path.join(HERE, "curated", "skills.json"), os.path.join(a.out, "skills.json"))

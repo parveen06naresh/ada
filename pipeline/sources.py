@@ -95,13 +95,16 @@ def load_all(src_dir: str, now: float | None = None) -> list[dict]:
         (_simplify, p("SimplifyJobs_Summer2027-Internships", ".github", "scripts", "listings.json"), "internship", "SimplifyJobs"),
         (_simplify, p("SimplifyJobs_New-Grad-Positions", ".github", "scripts", "listings.json"), "new-grad", "SimplifyJobs"),
         (_simplify, p("vanshb03_Summer2027-Internships", ".github", "scripts", "listings.json"), "internship", "vanshb03"),
+        (_simplify, p("vanshb03_New-Grad-2027", ".github", "scripts", "listings.json"), "new-grad", "vanshb03"),
     ]
     for fn, path, kind, src in plan:
         if os.path.exists(path):
             jobs += fn(path, kind, src)
-    sa = "speedyapply_2027-AI-College-Jobs"
-    for name, kind in (("README.md", "internship"), ("INTERN_INTL.md", "internship"),
-                       ("NEW_GRAD_USA.md", "new-grad"), ("NEW_GRAD_INTL.md", "new-grad")):
-        if os.path.exists(p(sa, name)):
-            jobs += _speedyapply(p(sa, name), kind, "speedyapply", now)
+    for sa in ("speedyapply_2027-AI-College-Jobs", "speedyapply_2027-SWE-College-Jobs"):
+        for name, kind in (("README.md", "internship"), ("INTERN_INTL.md", "internship"),
+                           ("NEW_GRAD_USA.md", "new-grad"), ("NEW_GRAD_INTL.md", "new-grad")):
+            if os.path.exists(p(sa, name)):
+                jobs += _speedyapply(p(sa, name), kind, "speedyapply", now)
+    from pipeline import ats  # employer boards, saved by `python -m pipeline.ats`
+    jobs += ats.load(src_dir)
     return jobs

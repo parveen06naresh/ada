@@ -141,3 +141,17 @@ def test_pack_jobs_round_trips():
         j["r"] = bool(j["r"])
         out.append(j)
     assert out == jobs
+
+
+def test_deadline_of_reads_timing_text():
+    from pipeline.build import deadline_of
+    now = 1792800000  # 2026-10-23
+    assert deadline_of({"timing": "Apply by November 13, 2026"}, now) == "2026-11-13"
+    assert deadline_of({"timing": "Apply by Nov. 22, 2026"}, now) == "2026-11-22"
+    assert deadline_of({"timing": "Apply by October 31"}, now) == "2026-10-31"
+    assert deadline_of({"timing": "Register by January 31, 2027; round on February 19, 2027"}, now) == "2027-01-31"
+    assert deadline_of({"timing": "Rolling"}, now) == ""
+    assert deadline_of({"timing": "Feb 26-28, 2027"}, now) == ""
+    assert deadline_of({"timing": "x", "deadline": "2027-01-05"}, now) == "2027-01-05"
+    assert deadline_of({"timing": "Apply November 1-30, 2026"}, now) == ""  # a window start, not a deadline
+    assert deadline_of({"timing": "Deadline: Dec 3, 2026"}, now) == "2026-12-03"

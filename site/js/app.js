@@ -345,13 +345,26 @@ function shareRoadmap() {
 }
 
 /* ---------- Programs ---------- */
+// Days until a program's application deadline (null when it has none). Closed programs are hidden.
+function daysLeft(p) {
+  if (!p.dl) return null;
+  return Math.round((Date.parse(`${p.dl}T23:59:59`) - Date.now()) / 864e5);
+}
+
+function closing(p) {
+  const d = daysLeft(p);
+  if (d == null || d > 21) return null;
+  return el("span", { class: "tag soon" }, d === 0 ? "Closes today" : d === 1 ? "Closes tomorrow" : `Closes in ${d} days`);
+}
+
 function renderPrograms() {
-  const types = ["all", ...Object.keys(PROGRAM_TYPES).filter((t) => t !== "all" && state.programs.some((p) => p.type === t))];
+  const open = state.programs.filter((p) => (daysLeft(p) ?? 0) >= 0);
+  const types = ["all", ...Object.keys(PROGRAM_TYPES).filter((t) => t !== "all" && open.some((p) => p.type === t))];
   $("#prog-types").replaceChildren(...types.map((t) => el("button", {
     class: state.progType === t ? "on" : "", role: "tab", "aria-selected": String(state.progType === t),
     onclick: () => { state.progType = t; renderPrograms(); },
-  }, `${PROGRAM_TYPES[t]}${t === "all" ? "" : ` (${state.programs.filter((p) => p.type === t).length})`}`)));
-  const list = state.programs.filter((p) => state.progType === "all" || p.type === state.progType);
+  }, `${PROGRAM_TYPES[t]}${t === "all" ? "" : ` (${open.filter((p) => p.type === t).length})`}`)));
+  const list = open.filter((p) => state.progType === "all" || p.type === state.progType);
   $("#programs").replaceChildren(...list.map((p) => el("li", { class: "card" },
     logo(p.org),
     el("div", {},
@@ -361,7 +374,8 @@ function renderPrograms() {
       el("div", { class: "tags" },
         el("span", { class: "tag track" }, PROGRAM_TYPES[p.type].replace(/s$/, "")),
         el("span", { class: "tag" }, p.who),
-        p.amount ? el("span", { class: "tag pay" }, p.amount) : null),
+        p.amount ? el("span", { class: "tag pay" }, p.amount) : null,
+        closing(p)),
     ),
     el("div", { class: "side" }, el("a", { class: "btn", href: p.url, target: "_blank", rel: "noopener" }, "Visit"), reportLink(p.title, p.url)),
   )));
@@ -470,7 +484,7 @@ function renderStats() {
     el("div", { class: "stat" }, el("b", {}, fmt(s.total)), el("span", {}, "open AI roles")),
     el("div", { class: "stat" }, el("b", {}, fmt(s.new_7d)), el("span", {}, "posted this week")),
     el("div", { class: "stat" }, el("b", {}, fmt(s.companies)), el("span", {}, "companies hiring")),
-    el("div", { class: "stat" }, el("b", {}, fmt(state.programs.length)), el("span", {}, "hackathons, fellowships and grants")),
+    el("div", { class: "stat" }, el("b", {}, fmt(state.programs.filter((p) => (daysLeft(p) ?? 0) >= 0).length)), el("span", {}, "hackathons, fellowships and grants")),
   );
 }
 
