@@ -1,28 +1,34 @@
-// Optional sign-in that syncs your saved roles, profile, progress and streak across devices.
-// Off unless site/config.js sets a Supabase project. Ada works fully without it.
+// Free accounts: sign-in unlocks the full match list, saving and tracking applications, and weekly
+// email, and syncs them across devices. Off unless site/config.js sets a Supabase project; if the
+// sign-in service can't load, Ada stays fully open instead of locking anyone out.
 // Your API key and AI plans never leave the device. Schema and row-level security: supabase/schema.sql.
 import * as config from "../config.js";
 
-const { SUPABASE_URL, SUPABASE_KEY, GITHUB_LOGIN } = config;
+const { SUPABASE_URL, SUPABASE_KEY, GITHUB_LOGIN, GOOGLE_LOGIN } = config;
 
 const SDK_URL = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
-export const SYNCED = ["saved", "profile", "progress", "streak", "resume"];
+export const SYNCED = ["saved", "profile", "progress", "streak", "resume", "tracker"];
 export const enabled = Boolean(SUPABASE_URL && SUPABASE_KEY);
 export const github = Boolean(GITHUB_LOGIN);
+export const google = Boolean(GOOGLE_LOGIN);
 
 // Combine two copies of a visitor's state without losing work: saved roles and finished
-// roadmap steps are unions; profile, resume and streak come from whichever copy changed last.
+// roadmap steps are unions; each tracked application keeps its latest status; profile, resume and
+// streak come from whichever copy changed last.
 export function mergeState(local, remote) {
   if (!remote) return local;
   const newer = (remote.updated || 0) > (local.updated || 0) ? remote : local;
   const progress = { ...(remote.progress || {}) };
   for (const [track, done] of Object.entries(local.progress || {})) progress[track] = [...new Set([...(progress[track] || []), ...done])];
   const streaks = [local.streak || {}, remote.streak || {}];
+  const tracker = { ...(remote.tracker || {}) };
+  for (const [id, t] of Object.entries(local.tracker || {})) if (!tracker[id] || (t.t || 0) >= (tracker[id].t || 0)) tracker[id] = t;
   return {
     saved: [...new Set([...(local.saved || []), ...(remote.saved || [])])],
     profile: newer.profile ?? local.profile ?? remote.profile,
     resume: newer.resume ?? local.resume ?? remote.resume,
     progress,
+    tracker,
     streak: { ...newer.streak, best: Math.max(...streaks.map((s) => s.best || 0)) },
     updated: Math.max(local.updated || 0, remote.updated || 0),
   };
@@ -31,6 +37,7 @@ export function mergeState(local, remote) {
 let client = null;
 let user = null;
 let pushTimer = null;
+let status = enabled ? "pending" : "off";
 
 async function getClient() {
   if (!client) {
@@ -41,11 +48,14 @@ async function getClient() {
 }
 
 export function currentUser() { return user; }
+// "pending" until the first answer from the sign-in service, then "ok"; "off" when it is not set up or failed to load.
+export function authStatus() { return status; }
 
 // read(): the local state object; write(state): apply a merged state; onChange(user): refresh the UI.
 export async function initSync({ read, write, onChange }) {
   if (!enabled) return;
-  const sb = await getClient();
+  let sb;
+  try { sb = await getClient(); } catch (e) { status = "off"; onChange(null, "OFF"); throw e; }
   const pull = async () => {
     const { data, error } = await sb.from("user_state").select("data").eq("user_id", user.id).maybeSingle();
     if (error) throw error;
@@ -56,7 +66,8 @@ export async function initSync({ read, write, onChange }) {
   sb.auth.onAuthStateChange((event, session) => {
     const was = user?.id;
     user = session?.user || null;
-    onChange(user);
+    status = "ok";
+    onChange(user, event);
     if (user && user.id !== was) pull().catch((e) => console.warn("Ada sync:", e.message));
   });
   async function push(now) {
@@ -78,9 +89,9 @@ export async function signInWithEmail(email) {
   if (error) throw error;
 }
 
-export async function signInWithGitHub() {
+export async function signInWith(provider) {
   const sb = await getClient();
-  const { error } = await sb.auth.signInWithOAuth({ provider: "github", options: { redirectTo: location.origin + location.pathname } });
+  const { error } = await sb.auth.signInWithOAuth({ provider, options: { redirectTo: location.origin + location.pathname } });
   if (error) throw error;
 }
 

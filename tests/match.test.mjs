@@ -116,6 +116,8 @@ test("mergeState never loses saved roles or finished steps", async () => {
   assert.equal(m.streak.best, 4);
   assert.equal(m.updated, 20);
   assert.equal(mergeState(local, null), local);
+  const t = mergeState({ ...local, tracker: { a: { s: "offer", t: 30 }, c: { s: "applied", t: 5 } } }, { ...remote, tracker: { a: { s: "applied", t: 10 }, c: { s: "interview", t: 9 } } }).tracker;
+  assert.deepEqual(t, { a: { s: "offer", t: 30 }, c: { s: "interview", t: 9 } });  // each application keeps its latest status
 });
 
 test("weekly digest lists only this week's matches and carries an unsubscribe link", async () => {

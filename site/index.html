@@ -29,7 +29,8 @@
       <a href="#trends" data-view="trends">Trends</a>
       <a href="#saved" data-view="saved">Saved <span id="saved-count" class="pill"></span></a>
     </nav>
-    <button id="account" class="btn ghost small" hidden>Sign in</button>
+    <button id="login" class="link small" hidden>Log in</button>
+    <button id="account" class="btn small" hidden>Sign up free</button>
     <button id="theme" class="icon-btn" aria-label="Toggle light and dark">☀</button>
   </header>
 
@@ -43,8 +44,8 @@
         <div>
           <p class="kicker"><span class="dot"></span> Live · rebuilt every morning from <span id="k-companies">1,700+</span> companies</p>
           <h1>Find the roles you can <em>actually get</em>.</h1>
-          <p class="lede">Drop your resume. Ada ranks thousands of open internships and new-grad roles across ten fields, from software and AI to finance, consulting and marketing, by how well you fit, shows exactly what's missing, and tells you what to fix first. Free, built by a student, and your resume never leaves your device.</p>
-          <div class="trust"><span>✓ No sign-up to try</span><span>✓ Read on your device</span><span>✓ Open source</span></div>
+          <p class="lede">Drop your resume. Ada ranks thousands of open internships and new-grad roles across ten fields, from software and AI to finance, consulting and marketing, by how well you fit, shows exactly what's missing, and tells you what to fix first. Free, built by a student, and your resume is read right on your device.</p>
+          <div class="trust"><span>✓ Your score free, no sign-up</span><span>✓ Read on your device</span><span>✓ Open source</span></div>
         </div>
         <label class="drop" id="drop" for="resume-file">
           <input type="file" id="resume-file" accept=".pdf,.docx,.txt,.md" hidden>
@@ -84,7 +85,7 @@
     <section class="view" id="view-match" hidden>
       <div id="m-empty" class="empty big">
         <h2>Your matches start with your resume</h2>
-        <p>Drop it on the box at the top of the page. It's read on this device, never uploaded.</p>
+        <p>Drop it on the box at the top of the page. It's read right here on this device.</p>
         <button class="btn" type="button" id="m-pick">Choose my resume</button>
       </div>
       <div id="m-out" hidden>
@@ -98,6 +99,7 @@
           <div class="seg" id="m-kind" role="tablist"></div>
         </div>
         <ul class="cards" id="m-list"></ul>
+        <div class="unlock panel" id="m-lock" hidden></div>
         <button class="btn ghost more" id="m-more" hidden>Show more</button>
       </div>
     </section>
@@ -180,6 +182,7 @@
 
     <!-- Saved -->
     <section class="view" id="view-saved" hidden>
+      <div class="pipeline" id="pipeline"></div>
       <div class="result-bar"><span id="saved-sum"></span><button class="link" id="export">Download as CSV</button></div>
       <ul class="cards" id="saved"></ul>
     </section>
@@ -193,21 +196,41 @@
       <a href="https://github.com/zapplyjobs/Internships-2027">Zapply</a> (data by Zapply), plus employers' own career sites. Thank you.
       <a href="data/feed.xml">RSS feed</a> · <a href="https://github.com/parveen06naresh/ada">GitHub</a> · <span id="updated"></span></p>
   </footer>
-  <dialog id="account-dlg" class="panel dlg">
+  <dialog id="account-dlg" class="panel dlg acct">
     <form method="dialog"><button class="icon-btn close" aria-label="Close">✕</button></form>
     <div id="acct-out">
-      <h2>Sync across devices</h2>
-      <p class="muted">Optional. Sign in to keep your saved roles, profile, resume and roadmap progress on every device. Your API key and AI plans never leave this device.</p>
-      <button class="btn" id="acct-github" type="button">Continue with GitHub</button>
-      <div class="or">or</div>
-      <div class="coach-row"><input id="acct-email" type="email" placeholder="you@school.edu" aria-label="Email"><button class="btn ghost" id="acct-email-go" type="button">Email me a link</button></div>
+      <p class="kicker"><span class="dot"></span> Free forever · built by a student</p>
+      <h2 id="acct-title">Create your free Ada account</h2>
+      <p class="muted" id="acct-why">One account turns Ada from a job list into your job search.</p>
+      <ul class="perks">
+        <li><b>Every match, ranked</b> by how well you fit, not just the top 3</li>
+        <li><b>Your skill plan</b>: what to learn next to raise your fit on hundreds of roles</li>
+        <li><b>Save and track</b> every application from saved to offer</li>
+        <li><b>A weekly email</b> with only the new roles you fit</li>
+        <li><b>Synced</b> on your laptop and phone</li>
+      </ul>
+      <div class="oauth">
+        <button class="btn ghost wide" id="acct-google" type="button" hidden><span class="g">G</span> Continue with Google</button>
+        <button class="btn ghost wide" id="acct-github" type="button" hidden>Continue with GitHub</button>
+      </div>
+      <form class="email-row" id="acct-form" onsubmit="return false">
+        <input id="acct-email" type="email" autocomplete="email" placeholder="you@school.edu" aria-label="Email" required>
+        <button class="btn" id="acct-email-go" type="submit">Continue with email</button>
+      </form>
       <p class="muted" id="acct-msg" aria-live="polite"></p>
+      <p class="fine">No password. We email you a one-tap link, and the same link signs you in next time. Once you're signed in, your saved roles, profile and resume sync to your private account that only you can read. Delete it anytime.</p>
+    </div>
+    <div id="acct-sent" hidden>
+      <div class="sent-icon" aria-hidden="true">✉</div>
+      <h2>Check your inbox</h2>
+      <p>We sent a sign-in link to <b id="acct-sent-to"></b>. Open it on this device and you're in.</p>
+      <p class="muted small">Nothing yet? Check spam or Promotions, then <button class="link" id="acct-resend" type="button">send it again</button> or <button class="link" id="acct-change" type="button">use another email</button>.</p>
     </div>
     <div id="acct-in" hidden>
-      <h2>You're synced</h2>
-      <p class="muted">Signed in as <b id="acct-who"></b>. Changes save to your account within a few seconds.</p>
-      <button class="btn ghost" id="acct-signout" type="button">Sign out</button>
-      <button class="link danger" id="acct-delete" type="button">Delete my cloud data</button>
+      <h2>You're in</h2>
+      <p class="muted">Signed in as <b id="acct-who"></b>. Everything you save syncs to your account within a few seconds.</p>
+      <div class="actions"><button class="btn ghost" id="acct-signout" type="button">Sign out</button>
+      <button class="link danger" id="acct-delete" type="button">Delete my account data</button></div>
     </div>
   </dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

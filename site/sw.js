@@ -1,6 +1,6 @@
 // Ada service worker: the app shell loads instantly from cache and updates in the background;
 // data is fetched fresh when online and served from cache when offline.
-const CACHE = "ada-v3";
+const CACHE = "ada-v4";
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(

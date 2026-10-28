@@ -6,3 +6,5 @@ export const SUPABASE_URL = "https://wcergjmwunejgfmhxczk.supabase.co";
 export const SUPABASE_KEY = "sb_publishable_Ld2z0pZDYIkscU0QQ-Yi5w_lBbJyOU7";
 // Set to true after enabling the GitHub provider in Supabase (Authentication > Providers).
 export const GITHUB_LOGIN = false;
+// Set to true after enabling the Google provider in Supabase (needs a Google Cloud OAuth client).
+export const GOOGLE_LOGIN = false;

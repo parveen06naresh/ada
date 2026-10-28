@@ -46,7 +46,38 @@ const state = {
   sharedView: null,
   parsed: null,
   mShown: 30,
+  tracker: store.get("tracker", {}),
 };
+
+/* ---------- Free account gate ---------- */
+// Browsing and your Ada score are open to everyone. The full match list, the skill plan, saving,
+// tracking and weekly email need a free account. If sign-in can't load, nothing is locked.
+const locked = () => sync.enabled && sync.authStatus() !== "off" && !sync.currentUser();
+const ASKS = {
+  signup: ["Create your free Ada account", "One account turns Ada from a job list into your job search."],
+  login: ["Welcome back", "Enter the email you signed up with and we'll send you a one-tap sign-in link. No password."],
+  save: ["Save it to your free account", "Saved roles follow you to every device, and you can track each one from applied to offer."],
+  match: ["See every role you fit", "Your full ranked list and skill plan are one free account away. It takes 20 seconds."],
+  plan: ["Unlock your skill plan", "See the skills that would raise your fit on the most roles, with hours and a free place to start."],
+  alerts: ["Get your weekly matches", "Every Monday, only the new roles you fit. One click to unsubscribe."],
+};
+function askSignup(why = "signup", pending = null) {
+  const [title, sub] = ASKS[why] || ASKS.signup;
+  $("#acct-title").textContent = title;
+  $("#acct-why").textContent = sub;
+  document.querySelector("#account-dlg .perks").hidden = why === "login";
+  $("#acct-out").hidden = false; $("#acct-sent").hidden = true; $("#acct-in").hidden = true;
+  $("#acct-msg").textContent = "";
+  store.set("pending", pending);
+  $("#account-dlg").showModal();
+  setTimeout(() => $("#acct-email").focus(), 50);
+}
+const STAGES = [["saved", "Saved"], ["applied", "Applied"], ["interview", "Interviewing"], ["offer", "Offer"], ["closed", "Closed"]];
+const stageOf = (id) => state.tracker[id]?.s || "saved";
+function setStage(id, s) {
+  state.tracker[id] = { s, t: Date.now() };
+  store.set("tracker", state.tracker);
+}
 
 function toast(msg) {
   const t = $("#toast");
@@ -93,10 +124,11 @@ function fitRing(f) {
   return r;
 }
 
-function jobCard(j, why, f) {
+function jobCard(j, why, f, track) {
   const on = state.saved.has(j.id);
   const save = el("button", { class: `save${on ? " on" : ""}`, title: on ? "Saved" : "Save", "aria-label": on ? "Unsave" : "Save", "aria-pressed": String(on) }, on ? "★" : "☆");
   save.addEventListener("click", () => {
+    if (locked() && !state.saved.has(j.id)) return askSignup("save", { save: j.id });
     if (state.saved.has(j.id)) state.saved.delete(j.id); else state.saved.add(j.id);
     store.set("saved", [...state.saved]);
     const now = state.saved.has(j.id);
@@ -129,7 +161,8 @@ function jobCard(j, why, f) {
       why && why.length ? el("div", { class: "why" }, "✓ " + why.join(" · ")) : null,
       skills,
     ),
-    el("div", { class: "side" }, el("a", { class: "btn", href: j.u, target: "_blank", rel: "noopener" }, "Apply"), save, reportLink(`${j.c}: ${j.t}`, j.u)),
+    el("div", { class: "side" }, el("a", { class: "btn", href: j.u, target: "_blank", rel: "noopener" }, "Apply"), save,
+      track ? stagePicker(j.id) : null, reportLink(`${j.c}: ${j.t}`, j.u)),
   );
 }
 
@@ -284,8 +317,20 @@ function renderMatch() {
     class: kind === k ? "on" : "", role: "tab", "aria-selected": String(kind === k),
     onclick: () => { state.profile.kind = k; store.set("profile", state.profile); state.mShown = 30; fillProfile(); renderMatch(); },
   }, label)));
-  $("#m-list").replaceChildren(...ranked.slice(0, state.mShown).map((x) => jobCard(x.j, null, x)));
-  $("#m-more").hidden = ranked.length <= state.mShown;
+  const lock = locked();
+  $("#m-gaps").classList.toggle("locked", lock);
+  if (lock) $("#m-gaps").append(el("div", { class: "lock-over" }, el("button", { class: "btn", onclick: () => askSignup("plan", { view: "match" }) }, "🔒 Unlock my skill plan")));
+  $("#m-list").replaceChildren(...ranked.slice(0, lock ? 3 : state.mShown).map((x) => jobCard(x.j, null, x)));
+  $("#m-more").hidden = lock || ranked.length <= state.mShown;
+  $("#m-lock").hidden = !lock;
+  if (lock) {
+    const peek = el("ul", { class: "cards peek", inert: true, "aria-hidden": "true" }, ranked.slice(3, 6).map((x) => jobCard(x.j, null, x)));
+    $("#m-lock").replaceChildren(peek, el("div", { class: "unlock-cta" },
+      el("h3", {}, `${fmt(Math.max(0, n - 3))} more strong matches are waiting`),
+      el("p", { class: "muted" }, "Create a free account to see every role ranked by your fit, your skill plan, and to save and track applications. No password, about 20 seconds."),
+      el("button", { class: "btn", onclick: () => askSignup("match", { view: "match" }) }, "Unlock all my matches, free"),
+      el("button", { class: "link small", onclick: () => askSignup("login", { view: "match" }) }, "I already have an account")));
+  }
 }
 
 // A share image with no personal details: counts and the top track only.
@@ -610,13 +655,41 @@ function renderTrends() {
   );
 }
 
-/* ---------- Saved ---------- */
+/* ---------- Saved and tracked ---------- */
+function stagePicker(id) {
+  const sel = el("select", { class: `stage s-${stageOf(id)}`, "aria-label": "Application status" },
+    STAGES.map(([v, label]) => el("option", { value: v, selected: stageOf(id) === v }, label)));
+  sel.addEventListener("change", () => {
+    setStage(id, sel.value);
+    sel.className = `stage s-${sel.value}`;
+    if (sel.value === "offer") toast("An offer! Congratulations 🎉");
+    renderPipeline();
+  });
+  return sel;
+}
+
+function renderPipeline() {
+  const list = state.jobs.filter((j) => state.saved.has(j.id));
+  const n = Object.fromEntries(STAGES.map(([v]) => [v, 0]));
+  for (const j of list) n[stageOf(j.id)]++;
+  $("#pipeline").hidden = !list.length;
+  $("#pipeline").replaceChildren(...STAGES.map(([v, label]) => el("div", { class: `stage-box s-${v}` }, el("b", {}, String(n[v])), el("span", {}, label))));
+}
+
 function renderSaved() {
   const list = state.jobs.filter((j) => state.saved.has(j.id));
+  const rank = Object.fromEntries(STAGES.map(([v], i) => [v, i]));
+  list.sort((a, b) => rank[stageOf(b.id)] - rank[stageOf(a.id)] || b.d - a.d);
   $("#saved-sum").textContent = list.length ? `${list.length} saved role${list.length === 1 ? "" : "s"}` : "";
+  renderPipeline();
   const ul = $("#saved");
-  ul.replaceChildren(...list.map((j) => jobCard(j)));
-  if (!list.length) ul.append(el("li", { class: "empty" }, "Tap ☆ on any role to save it here."));
+  ul.replaceChildren(...list.map((j) => jobCard(j, null, null, true)));
+  if (!list.length && locked()) {
+    ul.append(el("li", { class: "empty big" },
+      el("h2", {}, "Track every application in one place"),
+      el("p", {}, "Save roles with ☆, then move each one from saved to applied, interviewing and offer. Free with an account."),
+      el("button", { class: "btn", onclick: () => askSignup("save") }, "Create free account")));
+  } else if (!list.length) ul.append(el("li", { class: "empty" }, "Tap ☆ on any role to save it here, then track it from applied to offer."));
 }
 
 function exportCsv() {
@@ -696,12 +769,12 @@ function renderStats() {
 
 /* ---------- Optional sign-in ---------- */
 function syncedState() {
-  return { saved: [...state.saved], profile: state.profile, progress: state.progress, streak: state.streak,
+  return { saved: [...state.saved], profile: state.profile, progress: state.progress, streak: state.streak, tracker: state.tracker,
     resume: store.get("resume", ""), updated: store.get("updated", 0) };
 }
 
 function applySynced(m) {
-  state.saved = new Set(m.saved); state.profile = m.profile; state.progress = m.progress; state.streak = m.streak;
+  state.saved = new Set(m.saved); state.profile = m.profile; state.progress = m.progress; state.streak = m.streak; state.tracker = m.tracker || {};
   for (const k of sync.SYNCED) store.set(k, k === "saved" ? m.saved : m[k], true);
   store.set("updated", m.updated, true);
   $("#p-resume").value = m.resume || "";
@@ -710,21 +783,35 @@ function applySynced(m) {
 }
 
 function initAccount() {
-  const btn = $("#account"), dlg = $("#account-dlg");
+  const btn = $("#account"), login = $("#login"), dlg = $("#account-dlg");
   if (!sync.enabled) return;
-  btn.hidden = false;
-  const show = (user) => {
-    btn.textContent = user ? "✓ Synced" : "Sign in";
-    btn.title = user ? `Signed in as ${user.email || "you"}` : "Sign in to sync across devices";
-    $("#acct-out").hidden = !!user; $("#acct-in").hidden = !user;
+  btn.hidden = false; login.hidden = false;
+  const show = (user, event) => {
+    btn.textContent = user ? "✓ Signed in" : "Sign up free";
+    btn.classList.toggle("ghost", !!user);
+    btn.title = user ? `Signed in as ${user.email || "you"}` : "Create your free account";
+    login.hidden = !!user || sync.authStatus() === "off";
+    btn.hidden = sync.authStatus() === "off";
+    $("#acct-out").hidden = !!user; $("#acct-sent").hidden = true; $("#acct-in").hidden = !user;
     $("#acct-who").textContent = user?.email || "";
     $("#profile-note").textContent = user ? "Synced to your account, so it follows you to any device." : "Stays in your browser. Nothing is sent anywhere.";
     $("#p-alerts").checked = !!(user && state.profile.alerts);
-    $("#alerts-note").textContent = user ? `Sent to ${user.email}. One email a week, unsubscribe in one click.` : "Free. Sign in with your email to turn it on.";
+    $("#alerts-note").textContent = user ? `Sent to ${user.email}. One email a week, unsubscribe in one click.` : "Free with an account.";
+    if (user) finishPending(event);
+    if (state.jobs.length && ["match", "saved"].includes(location.hash.slice(1))) route();
   };
+  // Finish what the visitor was doing when we asked them to sign up (the link may open in a new tab).
+  function finishPending(event) {
+    const p = store.get("pending", null);
+    store.set("pending", null);
+    if (dlg.open) dlg.close();
+    if (p?.save && !state.saved.has(p.save)) { state.saved.add(p.save); store.set("saved", [...state.saved]); updateSavedCount(); }
+    if (p?.view && location.hash.slice(1) !== p.view) location.hash = p.view;
+    if (event === "SIGNED_IN" && (p || location.hash.includes("access_token"))) toast(p?.save ? "You're in. Role saved." : "You're in. Everything is unlocked.");
+  }
   $("#alerts-box").hidden = false;
   $("#p-alerts").addEventListener("change", (e) => {
-    if (!sync.currentUser()) { e.target.checked = false; dlg.showModal(); return; }
+    if (!sync.currentUser()) { e.target.checked = false; askSignup("alerts", { view: "foryou" }); return; }
     const p = state.profile;
     p.alerts = e.target.checked;
     if (p.alerts && !p.alertToken) p.alertToken = Array.from(crypto.getRandomValues(new Uint8Array(18)), (b) => b.toString(16).padStart(2, "0")).join("");
@@ -738,19 +825,36 @@ function initAccount() {
       .catch(() => toast("Could not unsubscribe. Try again, or turn emails off in For you."));
     history.replaceState(null, "", location.pathname + location.hash);
   }
-  btn.addEventListener("click", () => dlg.showModal());
-  $("#acct-email-go").addEventListener("click", async () => {
-    const email = $("#acct-email").value.trim();
-    if (!/^\S+@\S+\.\S+$/.test(email)) return toast("Enter your email first");
-    try { await sync.signInWithEmail(email); $("#acct-msg").textContent = `Check ${email} for a sign-in link.`; }
-    catch (e) { $("#acct-msg").textContent = `Could not send the link: ${e.message}`; }
-  });
-  $("#acct-github").hidden = !sync.github;
-  $("#acct-github").addEventListener("click", () => sync.signInWithGitHub().catch((e) => { $("#acct-msg").textContent = e.message; }));
+  btn.addEventListener("click", () => (sync.currentUser() ? dlg.showModal() : askSignup("signup")));
+  login.addEventListener("click", () => askSignup("login"));
+  let last = 0;
+  const send = async (email) => {
+    if (!/^\S+@\S+\.\S+$/.test(email)) { $("#acct-msg").textContent = "Enter a valid email first."; return; }
+    if (Date.now() - last < 30000) { $("#acct-msg").textContent = "Give it 30 seconds before sending another link."; return; }
+    const go = $("#acct-email-go");
+    go.disabled = true; go.textContent = "Sending…";
+    try {
+      await sync.signInWithEmail(email);
+      last = Date.now();
+      $("#acct-sent-to").textContent = email;
+      $("#acct-out").hidden = true; $("#acct-sent").hidden = false;
+    } catch (e) {
+      $("#acct-msg").textContent = /rate|limit|429/i.test(e.message)
+        ? "Lots of sign-ups right now. Wait a few minutes and try again."
+        : `Could not send the link: ${e.message}`;
+    } finally { go.disabled = false; go.textContent = "Continue with email"; }
+  };
+  $("#acct-form").addEventListener("submit", () => send($("#acct-email").value.trim()));
+  $("#acct-resend").addEventListener("click", () => { $("#acct-out").hidden = false; $("#acct-sent").hidden = true; send($("#acct-sent-to").textContent); });
+  $("#acct-change").addEventListener("click", () => { $("#acct-out").hidden = false; $("#acct-sent").hidden = true; $("#acct-email").select(); });
+  for (const [id, provider, on] of [["#acct-github", "github", sync.github], ["#acct-google", "google", sync.google]]) {
+    $(id).hidden = !on;
+    $(id).addEventListener("click", () => sync.signInWith(provider).catch((e) => { $("#acct-msg").textContent = e.message; }));
+  }
   $("#acct-signout").addEventListener("click", async () => { await sync.signOut(); dlg.close(); toast("Signed out. Your data stays on this device."); });
   $("#acct-delete").addEventListener("click", async () => {
     if (!confirm("Delete your synced data from the cloud? This device keeps its copy.")) return;
-    await sync.deleteMyData(); dlg.close(); toast("Cloud copy deleted");
+    await sync.deleteMyData(); dlg.close(); toast("Account data deleted");
   });
   show(null);
   sync.initSync({ read: syncedState, write: applySynced, onChange: show }).catch((e) => console.warn("Ada sync:", e.message));
