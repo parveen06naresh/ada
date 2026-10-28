@@ -88,3 +88,13 @@ test("a resume becomes a profile with the tracks it covers best", () => {
   assert.equal(bestTracks(graph, ["python", "cuda", "cpp", "distributed"], 1)[0].id, "infra");
   assert.deepEqual(profileFromResume(r, graph, { tracks: ["quant"], tracksFromUser: true }).tracks, ["quant"]);
 });
+
+test("the major steers the field, so a finance student gets finance roles first", () => {
+  const fin = parseResume(`Alex Kim\nalex@ufl.edu\nEDUCATION\nUniversity of Florida, B.S. Finance, May 2028\nEXPERIENCE\n• Built a DCF valuation model in Excel for 5 companies\nSKILLS\nExcel, Bloomberg, PowerPoint`, NOW);
+  assert.equal(fin.major, "finance");
+  assert.ok(fin.skills.includes("excel") && fin.skills.includes("finmodel"));
+  assert.equal(profileFromResume(fin, graph, {}).tracks[0], "finance");
+  const me = parseResume("Georgia Tech, B.S. Mechanical Engineering, 2027\nSolidWorks, MATLAB, 3D printing", NOW);
+  assert.equal(me.major, "hardware");
+  assert.equal(parseResume("USF, B.S. Computer Science, 2028", NOW).major, "swe");
+});

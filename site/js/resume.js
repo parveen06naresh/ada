@@ -43,6 +43,7 @@ export function parseResume(text, now = Date.now()) {
   const level = levelOf(t);
   return {
     skills: detectSkills(t),
+    major: majorTrack(t),
     level,
     grad,
     // A student finishing within about a year applies to new-grad roles; earlier than that, internships.
@@ -160,12 +161,14 @@ export function rankByFit(jobs, p, n = 50, now = Date.now()) {
 }
 
 // Which career tracks a set of skills already covers best, from the roadmap's skill lists.
-export function bestTracks(graph, known, n = 3) {
+// A degree in the field counts like a quarter of its skills when choosing where to point a student.
+export function bestTracks(graph, known, n = 3, major = null) {
   const k = new Set(known);
   return Object.entries(graph.tracks).map(([id, t]) => {
     const need = t.skills.filter((s) => s !== "portfolio" && s !== "python");
-    return { id, name: TRACKS[id], cover: need.length ? need.filter((s) => k.has(s)).length / need.length : 0 };
-  }).sort((a, b) => b.cover - a.cover).slice(0, n);
+    const cover = need.length ? need.filter((s) => k.has(s)).length / need.length : 0;
+    return { id, name: TRACKS[id], cover, rank: cover + (id === major ? 0.25 : 0) };
+  }).sort((a, b) => b.rank - a.rank).slice(0, n);
 }
 
 // The skills you lack that the most of your target roles ask for, with how many roles each one opens up.
@@ -181,9 +184,28 @@ export function gapPlan(jobs, p, graph, n = 4, now = Date.now()) {
     .map(([id, roles]) => ({ id, name: byId[id].name, hours: byId[id].hours, roles, learn: byId[id].learn?.[0] || null }));
 }
 
+// The degree's subject is the strongest hint at the field a student is aiming for.
+const MAJORS = [
+  ["finance", /\b(finance|accounting|economics|actuarial)\b/i],
+  ["marketing", /\b(marketing|communications?|advertising|public relations|journalism)\b/i],
+  ["ops", /\b(supply chain|operations management|industrial (and systems )?engineering|logistics|human resources|management information systems)\b/i],
+  ["hardware", /\b(mechanical|electrical|computer engineering|aerospace|civil|chemical engineering|biomedical engineering|mechatronics)\b/i],
+  ["science", /\b(biology|chemistry|biochemistry|neuroscience|nursing|public health|pharmacy|physics|health sciences?|biomedical sciences?)\b/i],
+  ["product", /\b(design|human[- ]computer interaction|hci|cognitive science)\b/i],
+  ["ds", /\b(data science|statistics|applied math\w*|mathematics)\b/i],
+  ["swe", /\b(computer science|software engineering|computer information|information technology)\b/i],
+  ["consulting", /\b(business administration|business|management)\b/i],
+];
+export function majorTrack(text) {
+  const edu = (text || "").split(/\n/).filter((l) => /\b(b\.?s\.?|b\.?a\.?|bachelor|master|m\.?s\.?|major|minor|degree|university|college)\b/i.test(l)).join(" ");
+  for (const [track, rx] of MAJORS) if (rx.test(edu)) return track;
+  return null;
+}
+
 // Turn a parsed resume into a profile, keeping anything the student already chose by hand.
 export function profileFromResume(r, graph, prev = {}) {
   const known = [...new Set([...(prev.known || []), ...r.skills])];
-  const tracks = prev.tracksFromUser ? prev.tracks : bestTracks(graph, known, 2).map((t) => t.id);
+  const major = r.major && graph.tracks[r.major] ? r.major : null;
+  const tracks = prev.tracksFromUser ? prev.tracks : bestTracks(graph, known, 2, major).map((t) => t.id);
   return { ...prev, known, tracks, level: r.level === "Undergrad" && r.kind === "new-grad" ? "New grad" : r.level, kind: r.kind };
 }

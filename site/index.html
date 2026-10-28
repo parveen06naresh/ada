@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ada · AI careers, mapped</title>
-  <meta name="description" content="Drop your resume and see the AI, data and quant internships and new-grad roles you fit best, what you are missing, and what to fix first. Free, open source, and your resume never leaves your device.">
-  <meta property="og:title" content="Ada · AI careers, mapped">
-  <meta property="og:description" content="Thousands of open AI roles, refreshed daily, and a free roadmap to get there.">
+  <title>Ada · Internships and new-grad jobs matched to your resume</title>
+  <meta name="description" content="Drop your resume and see the internships and new-grad roles you fit best across ten fields, what you are missing, and what to fix first. Free, open source, and your resume never leaves your device.">
+  <meta property="og:title" content="Ada · Find the roles you can actually get">
+  <meta property="og:description" content="Drop your resume and see your best-fit internships and new-grad roles across ten fields, what you are missing, and what to fix first. Free and open source.">
   <meta property="og:image" content="https://parveen06naresh.github.io/ada/og.png">
   <meta property="og:url" content="https://parveen06naresh.github.io/ada/">
   <meta name="twitter:card" content="summary_large_image">
-  <link rel="alternate" type="application/rss+xml" title="Ada: new AI roles" href="data/feed.xml">
+  <link rel="alternate" type="application/rss+xml" title="Ada: new early-career roles" href="data/feed.xml">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 26 16 4l12 22z' fill='%237c5cff'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -43,7 +43,7 @@
         <div>
           <p class="kicker"><span class="dot"></span> Live · rebuilt every morning from <span id="k-companies">1,700+</span> companies</p>
           <h1>Find the roles you can <em>actually get</em>.</h1>
-          <p class="lede">Drop your resume. Ada ranks every open AI, data and quant internship and new-grad role by how well you fit, shows exactly what's missing, and tells you what to fix first. Free, built by a student, and your resume never leaves your device.</p>
+          <p class="lede">Drop your resume. Ada ranks thousands of open internships and new-grad roles across ten fields, from software and AI to finance, consulting and marketing, by how well you fit, shows exactly what's missing, and tells you what to fix first. Free, built by a student, and your resume never leaves your device.</p>
           <div class="trust"><span>✓ No sign-up to try</span><span>✓ Read on your device</span><span>✓ Open source</span></div>
         </div>
         <label class="drop" id="drop" for="resume-file">
@@ -66,12 +66,14 @@
       <form class="filters" id="filters" role="search" onsubmit="return false">
         <input id="q" type="search" placeholder="Search roles, companies, cities… try “LLM intern” or “NVIDIA”" aria-label="Search">
         <select id="f-kind" aria-label="Type"><option value="any">Internships and new grad</option><option value="internship">Internships</option><option value="new-grad">New grad</option></select>
+        <select id="f-field" aria-label="Field"></select>
         <select id="f-track" aria-label="Role"></select>
         <select id="f-skill" aria-label="Skill"></select>
         <select id="f-level" aria-label="Level"><option value="any">Any level</option><option>Undergrad</option><option>Masters</option><option>PhD</option><option>New grad</option></select>
         <select id="f-country" aria-label="Country"></select>
         <select id="f-days" aria-label="Posted"><option value="0">Any time</option><option value="1">Last 24 hours</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select>
         <label class="check"><input type="checkbox" id="f-remote"> Remote</label>
+        <label class="check" title="Only where the listing says the employer sponsors visas"><input type="checkbox" id="f-visa"> Sponsors visas</label>
       </form>
       <div class="result-bar"><span id="count"></span><button class="link" id="share-search">Copy link to this search</button></div>
       <ul class="cards" id="results"></ul>
@@ -187,7 +189,8 @@
     <p>Free and open source. Role data comes from the public trackers by
       <a href="https://github.com/SimplifyJobs/Summer2027-Internships">SimplifyJobs</a>,
       <a href="https://github.com/speedyapply/2027-AI-College-Jobs">speedyapply</a> and
-      <a href="https://github.com/vanshb03/Summer2027-Internships">vanshb03</a>. Thank you.
+      <a href="https://github.com/vanshb03/Summer2027-Internships">vanshb03</a> and
+      <a href="https://github.com/zapplyjobs/Internships-2027">Zapply</a> (data by Zapply), plus employers' own career sites. Thank you.
       <a href="data/feed.xml">RSS feed</a> · <a href="https://github.com/parveen06naresh/ada">GitHub</a> · <span id="updated"></span></p>
   </footer>
   <dialog id="account-dlg" class="panel dlg">

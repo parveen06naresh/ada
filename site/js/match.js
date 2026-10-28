@@ -11,7 +11,23 @@ export const TRACKS = {
   mlops: "MLOps & Data Engineer",
   quant: "Quant Researcher",
   ds: "Data Scientist",
+  swe: "Software Engineer",
+  hardware: "Hardware Engineer",
+  product: "Product & Design",
+  finance: "Finance & Accounting",
+  consulting: "Consulting & Strategy",
+  marketing: "Marketing & Sales",
+  ops: "Operations & People",
+  science: "Science & Healthcare",
 };
+
+// The ten fields students search in. AI & Data holds the nine AI tracks; every other field is one track.
+export const FIELDS = {
+  swe: "Software", ai: "AI & Data", quant: "Quant & Trading", hardware: "Hardware & Engineering", product: "Product & Design",
+  finance: "Finance & Accounting", consulting: "Consulting & Strategy", marketing: "Marketing & Sales", ops: "Operations & People", science: "Science & Healthcare",
+};
+export const fieldOf = (tr) => (tr in FIELDS && tr !== "ai" ? tr : "ai");
+export const tracksIn = (field) => Object.keys(TRACKS).filter((t) => fieldOf(t) === field);
 
 export const today = (now = Date.now()) => Math.floor(now / 86400000);
 
@@ -37,7 +53,9 @@ export function filterJobs(jobs, q = {}, now = Date.now()) {
   const t0 = today(now);
   return jobs.filter((j) => {
     if (q.kind && q.kind !== "any" && j.k !== q.kind) return false;
+    if (q.field && q.field !== "any" && fieldOf(j.tr) !== q.field) return false;
     if (q.track && q.track !== "any" && j.tr !== q.track) return false;
+    if (q.visa && !j.v) return false;
     if (q.level && q.level !== "any" && j.lv !== q.level) return false;
     if (q.country && q.country !== "any" && !j.co.includes(q.country)) return false;
     if (q.remote && !j.r) return false;
@@ -185,6 +203,24 @@ const SKILL_PATTERNS = {
   mlops: /\b(mlops|docker|kubernetes|aws|gcp|azure|ci\/cd|mlflow|airflow|fastapi|flask|deploy\w*)\b/i,
   research: /\b(publications?|published|paper|arxiv|neurips|icml|iclr|cvpr|acl|research assistant)\b/i,
   quantfin: /\b(quant\w*|trading|derivatives?|options pricing|portfolio|backtest\w*|stochastic)\b/i,
+  dsa: /\b(data structures|algorithms?|leetcode|competitive programming|java|c#|golang|object[- ]oriented)\b/i,
+  web: /\b(javascript|typescript|react|next\.?js|node\.?js|html|css|vue|angular|django|rest api|graphql|swift|kotlin|flutter)\b/i,
+  cloud: /\b(aws|gcp|azure|docker|kubernetes|terraform|ci\/cd|linux|devops)\b/i,
+  excel: /\b(excel|spreadsheets?|pivot tables?|vlookup|xlookup|google sheets)\b/i,
+  finmodel: /\b(financial model\w*|valuation|dcf|lbo|m&a|three[- ]statement|comparable compan\w*|equity research|investment banking|bloomberg|capital iq|cfa)\b/i,
+  accounting: /\b(accounting|gaap|ifrs|audit\w*|tax(ation)?|cpa|quickbooks|reconciliation\w*|bookkeeping|accounts (payable|receivable))\b/i,
+  casework: /\b(case (competition|interview)s?|consult\w*|market sizing|strategy|business case|stakeholder\w*)\b/i,
+  digital: /\b(marketing|seo|sem|social media|google analytics|content (creation|strategy)|campaigns?|brand\w*|copywrit\w*|email marketing|meta ads|google ads)\b/i,
+  sales: /\b(sales|salesforce|hubspot|crm|business development|lead generation|cold (calling|outreach)|quota|customer success)\b/i,
+  design: /\b(figma|sketch|adobe (xd|illustrator|photoshop)|ux|ui design|user experience|wireframe\w*|prototyp\w*|user research|usability)\b/i,
+  productsense: /\b(product manag\w*|product roadmap|prd|user stories|a\/b tests?|product metrics|go-to-market|jira|agile|scrum)\b/i,
+  circuits: /\b(circuit\w*|pcb|verilog|vhdl|fpga|analog|digital logic|oscilloscope|ltspice|altium|cadence|signals and systems)\b/i,
+  cad: /\b(solidworks|autocad|cad|onshape|fusion 360|catia|creo|ansys|finite element|fea|gd&t|3d print\w*|matlab|simulink)\b/i,
+  embedded: /\b(embedded|firmware|microcontroller\w*|arduino|raspberry pi|rtos|stm32|esp32|uart|i2c|spi)\b/i,
+  supplychain: /\b(supply chain|logistics|procurement|sourcing|inventory|sap|erp|lean|six sigma|operations management|forecasting)\b/i,
+  people: /\b(human resources|recruit\w*|talent acquisition|onboarding|hris|workday|employee engagement|people operations)\b/i,
+  lab: /\b(pcr|cell culture|western blot|elisa|wet lab|laboratory|lab techniques|spectroscopy|chromatography|hplc|microscopy|crispr|assay\w*)\b/i,
+  clinical: /\b(clinical|patient\w*|hipaa|emr|ehr|epic|public health|epidemiolog\w*|nursing|healthcare|cna|emt|irb)\b/i,
 };
 
 export function detectSkills(text) {

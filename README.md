@@ -1,12 +1,14 @@
 <h1 align="center">▲ Ada</h1>
 
-<p align="center"><b>AI careers, mapped.</b><br>
-Every open AI, ML, data and quant internship and new-grad role in one place, refreshed daily.<br>
-Plus hackathons, fellowships and grants, a free roadmap built from what employers actually ask for,<br>and an AI coach that writes your personal 90-day plan.</p>
+<p align="center"><b>Find the roles you can actually get.</b><br>
+Drop your resume and Ada ranks every open internship and new-grad role across ten fields by how well you fit,<br>
+shows what you're missing, and tells you what to fix first. Your resume never leaves your device.</p>
 
 <p align="center">
-<b>6,097</b> open roles · <b>1,784</b> companies · <b>409</b> posted this week · <b>100</b> programs · <b>$0</b> to run
+<b>14,000+</b> open roles · <b>10</b> fields · <b>3,000+</b> companies · <b>100</b> programs · <b>$0</b> to run
 </p>
+
+<p align="center">Software · AI &amp; Data · Quant · Hardware · Product &amp; Design · Finance · Consulting · Marketing &amp; Sales · Operations &amp; People · Science &amp; Healthcare</p>
 
 <p align="center"><a href="https://parveen06naresh.github.io/ada/">Open Ada</a> · <a href="docs/paper/ada.pdf">Read the paper (PDF)</a></p>
 
@@ -14,7 +16,7 @@ Plus hackathons, fellowships and grants, a free roadmap built from what employer
 
 ## Why
 
-AI opportunities are scattered across a dozen GitHub trackers, job boards, university pages and Discord servers. Students check five sites every morning and still miss the role that fit them best. Ada pulls them into one fast, searchable place, tells you which ones fit **you** and why, and gives you a week-by-week plan to close the gap.
+Early-career roles are scattered across a dozen GitHub trackers, employer career sites, job boards, university pages and Discord servers. Students check five sites every morning and still miss the role that fit them best. Ada pulls them into one fast, searchable place, tells you which ones fit **you** and why, and gives you a week-by-week plan to close the gap.
 
 ## What it does
 

@@ -46,7 +46,7 @@ def _domain(url: str) -> str:
     return m.group(1).lower() if m else ""
 
 
-def _speedyapply(path: str, kind: str, source: str, now: float) -> list[dict]:
+def _speedyapply(path: str, kind: str, source: str, now: float, base: str = "AI/ML/Data") -> list[dict]:
     """Markdown tables: Company | Position | Location | [Salary] | Posting | Age, under FAANG/Quant/Other headings."""
     out, cols, section = [], [], ""
     with open(path) as f:
@@ -79,9 +79,53 @@ def _speedyapply(path: str, kind: str, source: str, now: float) -> list[dict]:
                 "url": link.group(1),
                 "posted": int(now - days * DAY),
                 "kind": kind,
-                "category": "Quant" if "quant" in section else "AI/ML/Data",
+                "category": "Quant" if "quant" in section else base,
                 "pay": row.get("salary", ""),
                 "source": source,
+            })
+    return out
+
+
+_ZAPPLY_SECTIONS = {"software engineering": "Software", "security engineering": "Software", "data science & ai": "Data Science & AI",
+                    "data, ai & research": "Data Science & AI", "hardware & engineering": "Hardware & Engineering",
+                    "hardware & systems engineering": "Hardware & Engineering", "product, design & research": "Product, Design & Research",
+                    "business & operations": "Business & Operations"}
+_AGE = {"m": 60, "h": 3600, "d": DAY, "w": 7 * DAY}
+
+
+def _zapply(path: str, kind: str, now: float) -> list[dict]:
+    """Zapply README tables (Company | Role | Location | Posted | Visa | Apply) under one heading per field.
+    Their data terms ask for credit and a link back, which the site footer gives."""
+    from pipeline.ats import SENIOR, kind_of
+    out, category = [], None
+    with open(path) as f:
+        for line in f:
+            h = re.search(r"<strong>([^<]+)</strong></h3>", line)
+            if h:
+                category = _ZAPPLY_SECTIONS.get(html.unescape(h.group(1)).strip().lower(), "")
+                continue
+            if category is None or not line.startswith("| **"):
+                continue
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if len(cells) < 6:
+                continue
+            title = html.unescape(cells[1])
+            link = re.search(r"\]\((https://[^)\s]+)\)", cells[5])
+            if not link or SENIOR.search(title) and not re.search(r"\bintern", title, re.I):
+                continue
+            age = re.match(r"(\d+)([mhdw])$", cells[3])
+            loc = html.unescape(cells[2]).replace("...", "").strip(" ,-")
+            out.append({
+                "company": html.unescape(cells[0].strip("* ")),
+                "title": title,
+                "locations": [loc] if loc else [],
+                "url": link.group(1),
+                "posted": int(now - int(age.group(1)) * _AGE[age.group(2)]) if age else 0,
+                "kind": kind_of(title) or kind,
+                "category": category,
+                "pay": "",
+                "source": "zapply",
+                "visa": "Sponsor" in cells[4],
             })
     return out
 
@@ -100,11 +144,16 @@ def load_all(src_dir: str, now: float | None = None) -> list[dict]:
     for fn, path, kind, src in plan:
         if os.path.exists(path):
             jobs += fn(path, kind, src)
-    for sa in ("speedyapply_2027-AI-College-Jobs", "speedyapply_2027-SWE-College-Jobs"):
+    for sa, base in (("speedyapply_2027-AI-College-Jobs", "AI/ML/Data"), ("speedyapply_2027-SWE-College-Jobs", "Software")):
         for name, kind in (("README.md", "internship"), ("INTERN_INTL.md", "internship"),
                            ("NEW_GRAD_USA.md", "new-grad"), ("NEW_GRAD_INTL.md", "new-grad")):
             if os.path.exists(p(sa, name)):
-                jobs += _speedyapply(p(sa, name), kind, "speedyapply", now)
+                jobs += _speedyapply(p(sa, name), kind, "speedyapply", now, base)
+    for repo, kind in (("zapplyjobs_Internships-2027", "internship"), ("zapplyjobs_New-Grad-Jobs-2027", "new-grad")):
+        if os.path.exists(p(repo, "README.md")):
+            jobs += _zapply(p(repo, "README.md"), kind, now)
     from pipeline import ats  # employer boards, saved by `python -m pipeline.ats`
     jobs += ats.load(src_dir)
+    from pipeline import workday  # employer Workday career sites, saved by `python -m pipeline.workday`
+    jobs += workday.load(src_dir, now)
     return jobs

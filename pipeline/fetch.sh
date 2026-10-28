@@ -5,7 +5,8 @@ dir="${1:-.sources}"
 mkdir -p "$dir"
 for repo in SimplifyJobs/Summer2027-Internships SimplifyJobs/New-Grad-Positions \
             vanshb03/Summer2027-Internships vanshb03/New-Grad-2027 \
-            speedyapply/2027-AI-College-Jobs speedyapply/2027-SWE-College-Jobs; do
+            speedyapply/2027-AI-College-Jobs speedyapply/2027-SWE-College-Jobs \
+            zapplyjobs/Internships-2027 zapplyjobs/New-Grad-Jobs-2027; do
   dest="$dir/${repo/\//_}"
   if [ -d "$dest/.git" ]; then
     git -C "$dest" pull -q --depth 1 || echo "warn: could not update $repo"
@@ -16,3 +17,6 @@ done
 
 # Employer job boards (Greenhouse, Lever, Ashby) listed in pipeline/curated/boards.json
 python3 -m pipeline.ats "$dir" || echo "warn: could not read employer boards"
+
+# Employer Workday career sites listed in pipeline/curated/workday.json
+python3 -m pipeline.workday "$dir" || echo "warn: could not read Workday sites"

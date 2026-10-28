@@ -86,12 +86,16 @@ def test_build_dedupes_and_merges():
     jobs = build_jobs([
         _raw(),
         _raw(title="ML  engineer intern", posted=NOW - 5 * DAY, pay="$60/hr", source="u"),  # same role, other tracker
-        _raw(title="Accounting Intern"),  # not AI
+        _raw(title="Accounting Intern", visa=True),  # a finance role now; the tracker says it sponsors visas
+        _raw(title="Forklift Operator"),  # in none of the ten fields
         _raw(company="Beta", title="LLM Research Scientist", kind="new-grad", locations=["London, UK"]),
         _raw(company="beta", title="Data Scientist", domain="beta.ai"),  # website from another tracker row
     ])
-    assert len(jobs) == 3
-    acme = next(j for j in jobs if j["c"] == "Acme")
+    assert len(jobs) == 4
+    acc = next(j for j in jobs if j["t"] == "Accounting Intern")
+    assert acc["tr"] == "finance" and acc["v"] == 1 and "accounting" in acc["s"] and "python" not in acc["s"]
+    jobs = [j for j in jobs if j is not acc]
+    acme = next(j for j in jobs if j["c"] == "Acme" and j["tr"] == "mle")
     assert acme["d"] == (NOW - 5 * DAY) // DAY and acme["p"] == 60
     beta = next(j for j in jobs if j["c"] == "Beta")
     assert beta["tr"] == "llm" and beta["co"] == ["United Kingdom"] and beta["k"] == "new-grad"
@@ -101,6 +105,23 @@ def test_build_dedupes_and_merges():
     assert sum(w["n"] for w in stats["weekly"]) == 3
     feed = build_feed(jobs, NOW, "https://example.com/")
     assert feed.count("<item>") == 3 and "&amp;" not in feed.split("<item>")[0]
+
+
+def test_fields():
+    assert enrich.role_of("Software Engineer Intern", "Software") == ("swe", "swe")
+    assert enrich.role_of("Site Reliability Engineering Intern") == ("swe", "swe")
+    assert enrich.role_of("Mechanical Engineering Intern") == ("hardware", "hardware")
+    assert enrich.role_of("PCB Designer Intern") == ("hardware", "hardware")
+    assert enrich.role_of("Product Manager Intern") == ("product", "product")
+    assert enrich.role_of("Investment Banking Summer Analyst") == ("finance", "finance")
+    assert enrich.role_of("Strategy Consulting Intern") == ("consulting", "consulting")
+    assert enrich.role_of("Digital Marketing Intern") == ("marketing", "marketing")
+    assert enrich.role_of("Supply Chain Intern") == ("ops", "ops")
+    assert enrich.role_of("Clinical Research Intern") == ("science", "science")
+    assert enrich.role_of("Data Analyst Intern") == ("ai", "ds")
+    assert enrich.role_of("Quantitative Trader Intern") == ("quant", "quant")
+    assert enrich.role_of("Summer Analyst", "Finance") == ("finance", "finance")
+    assert enrich.role_of("Forklift Operator") is None
 
 
 def test_curated_data_is_consistent():
@@ -128,9 +149,9 @@ def test_cpp_in_titles():
 
 def test_pack_jobs_round_trips():
     jobs = [{"id": "a", "k": "internship", "t": "ML Intern", "c": "Acme", "l": ["SF"], "co": ["United States"], "r": False,
-             "tr": "mle", "s": ["pytorch"], "lv": "Undergrad", "u": "https://x", "d": 20000, "p": None, "src": "simplify", "dm": ""},
+             "tr": "mle", "s": ["pytorch"], "lv": "Undergrad", "u": "https://x", "d": 20000, "p": None, "src": "simplify", "dm": "", "v": 0},
             {"id": "b", "k": "internship", "t": "LLM Intern", "c": "Acme", "l": ["SF", "NYC"], "co": ["United States"], "r": True,
-             "tr": "llm", "s": [], "lv": "Undergrad", "u": "https://y", "d": 19999, "p": 50.0, "src": "simplify", "dm": "acme.com"}]
+             "tr": "llm", "s": [], "lv": "Undergrad", "u": "https://y", "d": 19999, "p": 50.0, "src": "simplify", "dm": "acme.com", "v": 1}]
     packed = pack_jobs(jobs, 0)
     assert packed["strings"].count("Acme") == 1
     keys, strings, str_keys = packed["keys"], packed["strings"], set(packed["strings_in"])

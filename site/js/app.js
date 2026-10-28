@@ -1,5 +1,5 @@
 import {
-  BADGES, TRACKS, checkIn, decodeProfile, detectSkills, encodeProfile, filterJobs, planRoadmap, recommend, today, unpackJobs,
+  BADGES, FIELDS, TRACKS, checkIn, fieldOf, tracksIn, decodeProfile, detectSkills, encodeProfile, filterJobs, planRoadmap, recommend, today, unpackJobs,
 } from "./match.js";
 import { MODEL, buildPrompt, friendlyError, renderMarkdown, runCoach } from "./coach.js";
 import * as sync from "./sync.js";
@@ -33,7 +33,7 @@ const store = {
 };
 
 const SKILL_NAMES = {};
-const SHORT = { python: "Python", git: "Git", math: "Math", stats: "Statistics", sql: "SQL", ml: "ML", pytorch: "PyTorch", llms: "LLMs", rag: "RAG and agents", cv: "Computer vision", nlp: "NLP", rl: "RL", cpp: "C++", cuda: "CUDA", distributed: "Distributed systems", mlops: "MLOps", research: "Research", quantfin: "Markets" };
+const SHORT = { python: "Python", git: "Git", math: "Math", stats: "Statistics", sql: "SQL", ml: "ML", pytorch: "PyTorch", llms: "LLMs", rag: "RAG and agents", cv: "Computer vision", nlp: "NLP", rl: "RL", cpp: "C++", cuda: "CUDA", distributed: "Distributed systems", mlops: "MLOps", research: "Research", quantfin: "Markets", dsa: "Algorithms", web: "Web apps", cloud: "Cloud", excel: "Excel", finmodel: "Financial modeling", accounting: "Accounting", casework: "Case work", digital: "Digital marketing", sales: "Sales and CRM", design: "UX design", productsense: "Product sense", circuits: "Circuits", cad: "CAD", embedded: "Embedded", supplychain: "Supply chain", people: "HR", lab: "Lab skills", clinical: "Clinical" };
 const PROGRAM_TYPES = { all: "All", hackathon: "Hackathons", competition: "Competitions", fellowship: "Fellowships", research: "Research programs", grant: "Grants", startup: "Startup programs", compute: "Free compute" };
 const state = {
   jobs: [], programs: [], graph: null, stats: null,
@@ -110,6 +110,7 @@ function jobCard(j, why, f) {
     el("span", { class: "tag" }, j.k === "internship" ? "Internship" : "New grad"),
     j.lv === "PhD" || j.lv === "Masters" ? el("span", { class: "tag" }, j.lv) : null,
     j.r ? el("span", { class: "tag" }, "Remote") : null,
+    j.v ? el("span", { class: "tag visa", title: "The listing says the employer sponsors visas" }, "Sponsors visas") : null,
     today() - j.d <= 3 ? el("span", { class: "tag new" }, "New") : null,
     !f && state.parsed ? el("span", { class: "tag fitTag" }, `${fitJob(j, state.profile).fit}% fit`) : null,
     j.p ? el("span", { class: "tag pay" }, `$${Math.round(j.p)}/hr`) : null,
@@ -137,12 +138,14 @@ function readFilters() {
   return {
     text: $("#q").value.trim(),
     kind: $("#f-kind").value,
+    field: $("#f-field").value,
     track: $("#f-track").value,
     skill: $("#f-skill").value,
     level: $("#f-level").value,
     country: $("#f-country").value,
     days: +$("#f-days").value || 0,
     remote: $("#f-remote").checked,
+    visa: $("#f-visa").checked,
   };
 }
 
@@ -165,9 +168,10 @@ function searchParams() {
 
 function applySearchParams(p) {
   const set = (id, k) => { if (p.has(k)) $(id).value = p.get(k); };
-  set("#q", "text"); set("#f-kind", "kind"); set("#f-track", "track"); set("#f-skill", "skill");
+  set("#q", "text"); set("#f-kind", "kind"); set("#f-field", "field"); fillRoleFilter(); set("#f-track", "track"); set("#f-skill", "skill");
   set("#f-level", "level"); set("#f-country", "country"); set("#f-days", "days");
   $("#f-remote").checked = p.get("remote") === "1";
+  $("#f-visa").checked = p.get("visa") === "1";
 }
 
 /* ---------- My matches (resume first) ---------- */
@@ -226,7 +230,7 @@ function renderMatch() {
   const checks = resumeChecks(r);
   const score = adaScore(ranked, checks);
   const { n, week } = strongCount({ ...p, kind });
-  const tracks = bestTracks(state.graph, p.known || [], 3);
+  const tracks = bestTracks(state.graph, p.known || [], 3, r.major);
   const kindWord = kind === "internship" ? "internships" : kind === "new-grad" ? "new-grad roles" : "roles";
   state.card = { n, kindWord, top: ranked[0], score, track: TRACKS[p.tracks?.[0]] || tracks[0]?.name };
 
@@ -408,7 +412,7 @@ function renderForYou() {
 function weeklyDigest(recs) {
   const lines = recs.filter((r) => today() - r.j.d <= 7).slice(0, 15)
     .map((r) => `• ${r.j.c}: ${r.j.t} (${r.j.l[0] || "location not listed"})\n  ${r.j.u}`);
-  return `My AI roles this week (via Ada)\n\n${lines.join("\n") || "No new matches this week."}`;
+  return `My best-fit roles this week (via Ada)\n\n${lines.join("\n") || "No new matches this week."}`;
 }
 
 /* ---------- Roadmap ---------- */
@@ -519,7 +523,7 @@ function shareRoadmap() {
   const p = state.profile;
   const payload = { t: track, hours: p.hours, done: [...new Set([...(p.known || []), ...(state.progress[track] || [])])] };
   const url = `${location.origin}${location.pathname}#roadmap/${encodeProfile(payload)}`;
-  copy(`Here's my ${TRACKS[track]} roadmap, built from ${fmt(state.jobs.length)} open AI roles: ${url}`, "Roadmap link copied");
+  copy(`Here's my ${TRACKS[track]} roadmap, built from ${fmt(state.jobs.length)} open roles: ${url}`, "Roadmap link copied");
 }
 
 /* ---------- Programs ---------- */
@@ -570,7 +574,10 @@ function bars(rows, max, fmtV = fmt) {
 
 function renderTrends() {
   const s = state.stats;
-  const tracks = [...s.tracks].sort((a, b) => b[2] - a[2]);
+  const byField = {};
+  for (const [k, , n] of s.tracks) byField[fieldOf(k)] = (byField[fieldOf(k)] || 0) + n;
+  const fields = Object.entries(byField).sort((a, b) => b[1] - a[1]).map(([f, n]) => [FIELDS[f], n]);
+  const aiTracks = s.tracks.filter((t) => fieldOf(t[0]) === "ai").sort((a, b) => b[2] - a[2]);
   const skills = Object.entries(s.skills).filter(([k]) => k !== "python" && SKILL_NAMES[k]).map(([k, v]) => [SKILL_NAMES[k], v]);
   const paid = state.jobs.filter((j) => j.p).sort((a, b) => b.p - a.p);
   const payRows = [];
@@ -591,7 +598,8 @@ function renderTrends() {
   weekly.append(el("div", { class: "note" }, `${fmt(w[w.length - 1].n)} roles posted this week, by posting date. Last 12 weeks.`));
   $("#trends").replaceChildren(
     weekly,
-    el("div", { class: "panel" }, el("h3", {}, "Open roles by career track"), bars(tracks.map((t) => [t[1], t[2]]), tracks[0][2])),
+    el("div", { class: "panel" }, el("h3", {}, "Open roles by field"), bars(fields, fields[0][1])),
+    el("div", { class: "panel" }, el("h3", {}, "Inside AI & Data"), bars(aiTracks.map((t) => [t[1], t[2]]), aiTracks[0][2])),
     el("div", { class: "panel" }, el("h3", {}, "Skills employers ask for"), bars(skills.slice(0, 10), skills[0]?.[1] || 1, (v) => `${Math.round(v * 100)}%`),
       el("div", { class: "note" }, "Share of open roles where the skill is core, read from job titles and role type.")),
     el("div", { class: "panel" }, el("h3", {}, "Best paying roles, where pay is published"), bars(payRows, payRows[0]?.[1] || 1, (v) => `$${Math.round(v)}/hr`),
@@ -644,6 +652,26 @@ function options(sel, rows, first) {
   sel.replaceChildren(...(first ? [el("option", { value: first[0] }, first[1])] : []), ...rows.map(([v, l]) => el("option", { value: v }, l)));
 }
 
+// Every career track, grouped under its field.
+function trackOptions(sel, first) {
+  const groups = Object.entries(FIELDS).map(([f, name]) => {
+    const ts = tracksIn(f);
+    return ts.length === 1 ? el("option", { value: ts[0] }, name)
+      : el("optgroup", { label: name }, ts.map((t) => el("option", { value: t }, TRACKS[t])));
+  });
+  sel.replaceChildren(...(first ? [el("option", { value: first[0] }, first[1])] : []), ...groups);
+}
+
+// The role filter only matters inside AI & Data, the one field with several tracks.
+function fillRoleFilter() {
+  const f = $("#f-field").value;
+  const ts = f === "any" ? Object.keys(TRACKS) : tracksIn(f);
+  const keep = $("#f-track").value;
+  options($("#f-track"), ts.map((t) => [t, TRACKS[t]]), ["any", "Any role"]);
+  $("#f-track").value = ts.includes(keep) ? keep : "any";
+  $("#f-track").hidden = f !== "any" && ts.length < 2;
+}
+
 function initTheme() {
   const saved = store.get("theme", null);
   if (saved) document.documentElement.dataset.theme = saved;
@@ -659,7 +687,7 @@ function initTheme() {
 function renderStats() {
   const s = state.stats;
   $("#stats").replaceChildren(
-    el("div", { class: "stat" }, el("b", {}, fmt(s.total)), el("span", {}, "open AI roles")),
+    el("div", { class: "stat" }, el("b", {}, fmt(s.total)), el("span", {}, "open roles in 10 fields")),
     el("div", { class: "stat" }, el("b", {}, fmt(s.new_7d)), el("span", {}, "posted this week")),
     el("div", { class: "stat" }, el("b", {}, fmt(s.companies)), el("span", {}, "companies hiring")),
     el("div", { class: "stat" }, el("b", {}, fmt(state.programs.filter((p) => (daysLeft(p) ?? 0) >= 0).length)), el("span", {}, "hackathons, fellowships and grants")),
@@ -762,11 +790,12 @@ async function boot() {
   const s = state.stats;
   $("#updated").textContent = `Updated ${new Date(opp.updated * 1000).toLocaleString()}`;
 
-  const trackRows = Object.entries(TRACKS);
-  options($("#f-track"), trackRows, ["any", "Any role"]);
-  options($("#rm-track"), trackRows);
-  options($("#p-track"), trackRows);
-  options($("#p-track2"), trackRows, ["none", "None"]);
+  options($("#f-field"), Object.entries(FIELDS), ["any", "All fields"]);
+  fillRoleFilter();
+  $("#f-field").addEventListener("change", fillRoleFilter);
+  trackOptions($("#rm-track"));
+  trackOptions($("#p-track"));
+  trackOptions($("#p-track2"), ["none", "None"]);
   options($("#f-skill"), state.graph.skills.filter((k) => !["portfolio", "git", "research", "ml", "rag", "quantfin"].includes(k.id)).map((k) => [k.id, k.name]), ["any", "Any skill"]);
   const countries = s.countries.map((c) => c[0]).filter((c) => c !== "Unknown");
   const allCountries = [...new Set([...countries, ...state.jobs.flatMap((j) => j.co)])].filter((c) => c !== "Unknown");

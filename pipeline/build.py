@@ -1,6 +1,7 @@
 """Build the site's data: python -m pipeline.build [--src .sources] [--out site/data]
 
-Reads the trackers (pipeline/fetch.sh clones them), keeps AI, ML, data and quant roles,
+Reads the trackers (pipeline/fetch.sh clones them), keeps roles in Ada's ten fields
+(AI & data, software, quant, hardware, product, finance, consulting, marketing, operations, science),
 tags each with a track, skills, level and country, and writes:
 
   opportunities.json  every open role, compact keys (see FIELDS)
@@ -31,7 +32,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 FIELDS = {"id": "id", "k": "kind", "t": "title", "c": "company", "l": "locations", "co": "countries",
           "r": "remote", "tr": "track", "s": "skills", "lv": "level", "u": "url", "d": "posted (unix days)",
-          "p": "pay per hour (USD, when published)", "src": "source", "dm": "company website, when a tracker lists it"}
+          "p": "pay per hour (USD, when published)", "src": "source", "dm": "company website, when a tracker lists it", "v": "1 when the listing says the employer sponsors visas"}
 
 
 def _key(j: dict) -> str:
@@ -56,7 +57,8 @@ def build_jobs(raw: list[dict]) -> list[dict]:
     seen: dict[str, dict] = {}
     by_url: dict[str, str] = {}
     for j in raw:
-        if not enrich.is_ai(j["title"], j["category"]):
+        role = enrich.role_of(j["title"], j["category"])
+        if not role:
             continue
         k = _key(j)
         u = k.rsplit("|", 1)[0] + "|" + _url_key(j["url"])  # same role and link, location written differently
@@ -67,8 +69,9 @@ def build_jobs(raw: list[dict]) -> list[dict]:
             old = seen[k]
             old["d"] = min(old["d"], j["posted"] // DAY) if j["posted"] else old["d"]
             old["p"] = old["p"] or pay
+            old["v"] = old["v"] or int(bool(j.get("visa")))
             continue
-        track = enrich.track_of(j["title"], j["category"])
+        track = role[1]
         locs = j["locations"][:6]
         countries = sorted({enrich.country_of(l) for l in locs}) or ["Unknown"]
         by_url.setdefault(u, k)
@@ -88,6 +91,7 @@ def build_jobs(raw: list[dict]) -> list[dict]:
             "p": pay,
             "src": j["source"],
             "dm": domains.get(j["company"].lower(), ""),
+            "v": int(bool(j.get("visa"))),
         }
     return sorted(seen.values(), key=lambda x: (-x["d"], x["c"].lower()))
 
@@ -180,7 +184,7 @@ def build_stats(jobs: list[dict], programs: list[dict], now: float) -> dict:
 
 def build_feed(jobs: list[dict], now: float, site_url: str) -> str:
     items = []
-    for j in jobs[:100]:
+    for j in [j for j in jobs if j["src"] != "zapply"][:100]:  # Zapply's terms: no re-publishing their listings in feeds
         when = formatdate(j["d"] * DAY, usegmt=True)
         where = ", ".join(j["l"][:2]) or "Location not listed"
         items.append(
@@ -190,8 +194,8 @@ def build_feed(jobs: list[dict], now: float, site_url: str) -> str:
         )
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel>'
-        f"<title>Ada: new AI roles</title><link>{escape(site_url)}</link>"
-        "<description>New AI, ML, data and quant internships and new-grad roles, refreshed daily.</description>"
+        f"<title>Ada: new early-career roles</title><link>{escape(site_url)}</link>"
+        "<description>New internships and new-grad roles across ten fields, refreshed daily.</description>"
         f"<lastBuildDate>{formatdate(now, usegmt=True)}</lastBuildDate>{''.join(items)}</channel></rss>\n"
     )
 

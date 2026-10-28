@@ -1,73 +1,908 @@
 {
-  "skills": [
-    {"id": "python", "name": "Python and tooling", "hours": 30, "prereqs": [],
-     "learn": [["Python tutorial (official)", "https://docs.python.org/3/tutorial/"], ["The Missing Semester (MIT)", "https://missing.csail.mit.edu"]],
-     "project": "Write a command-line tool that cleans a messy CSV and prints a summary. Put it on GitHub with a README."},
-    {"id": "git", "name": "Git, Linux and the command line", "hours": 10, "prereqs": [],
-     "learn": [["The Missing Semester (MIT)", "https://missing.csail.mit.edu"], ["Pro Git book", "https://git-scm.com/book/en/v2"]],
-     "project": "Contribute one fix or doc improvement to an open-source repo you use."},
-    {"id": "math", "name": "Linear algebra, calculus and probability", "hours": 40, "prereqs": [],
-     "learn": [["Essence of Linear Algebra (3Blue1Brown)", "https://www.3blue1brown.com/topics/linear-algebra"], ["MIT 18.06 Linear Algebra", "https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/"], ["Seeing Theory (probability)", "https://seeing-theory.brown.edu"]],
-     "project": "Implement linear regression with gradient descent using only NumPy, and plot the loss going down."},
-    {"id": "stats", "name": "Statistics and experimentation", "hours": 25, "prereqs": ["math"],
-     "learn": [["Think Stats (free book)", "https://greenteapress.com/wp/think-stats-2e/"], ["Seeing Theory", "https://seeing-theory.brown.edu"]],
-     "project": "Analyze a public A/B test dataset: confidence intervals, p-values, and a one-page write-up of the decision."},
-    {"id": "sql", "name": "SQL and data wrangling", "hours": 20, "prereqs": ["python"],
-     "learn": [["SQLBolt", "https://sqlbolt.com"], ["Kaggle Learn: Pandas and SQL", "https://www.kaggle.com/learn"]],
-     "project": "Load a public dataset into SQLite, answer five business questions with SQL, and chart the answers."},
-    {"id": "ml", "name": "Classical machine learning", "hours": 40, "prereqs": ["python", "math"],
-     "learn": [["Machine Learning Specialization (Andrew Ng)", "https://www.coursera.org/specializations/machine-learning-introduction"], ["Stanford CS229", "https://cs229.stanford.edu"], ["scikit-learn user guide", "https://scikit-learn.org/stable/user_guide.html"]],
-     "project": "Enter a Kaggle playground competition and beat the baseline with honest cross-validation."},
-    {"id": "pytorch", "name": "Deep learning with PyTorch", "hours": 50, "prereqs": ["ml"],
-     "learn": [["Neural Networks: Zero to Hero (Karpathy)", "https://karpathy.ai/zero-to-hero.html"], ["Practical Deep Learning (fast.ai)", "https://course.fast.ai"], ["Dive into Deep Learning", "https://d2l.ai"], ["PyTorch tutorials", "https://pytorch.org/tutorials/"]],
-     "project": "Train a small image or text classifier from scratch in PyTorch and report accuracy with a confusion matrix."},
-    {"id": "llms", "name": "Transformers and LLMs", "hours": 50, "prereqs": ["pytorch"],
-     "learn": [["Let's build GPT (Karpathy)", "https://karpathy.ai/zero-to-hero.html"], ["Hugging Face LLM course", "https://huggingface.co/learn"], ["Stanford CS336: Language Modeling from Scratch", "https://cs336.stanford.edu"]],
-     "project": "Fine-tune a small open model on a task you care about and compare it to the base model on 100 held-out examples."},
-    {"id": "rag", "name": "RAG, agents and evals", "hours": 30, "prereqs": ["llms"],
-     "learn": [["DeepLearning.AI short courses", "https://www.deeplearning.ai/short-courses/"], ["Hugging Face Agents course", "https://huggingface.co/learn"]],
-     "project": "Build a question-answering app over your own documents, with an eval set that measures how often it is right."},
-    {"id": "cv", "name": "Computer vision", "hours": 40, "prereqs": ["pytorch"],
-     "learn": [["Stanford CS231n", "https://cs231n.stanford.edu"], ["OpenCV docs", "https://docs.opencv.org"]],
-     "project": "Fine-tune an object detector on a custom dataset you labeled yourself, and demo it on video."},
-    {"id": "nlp", "name": "NLP and speech", "hours": 40, "prereqs": ["pytorch"],
-     "learn": [["Stanford CS224n", "https://web.stanford.edu/class/cs224n/"], ["Hugging Face course", "https://huggingface.co/learn"]],
-     "project": "Build a search or classification system over real text and measure precision and recall."},
-    {"id": "rl", "name": "Reinforcement learning and control", "hours": 45, "prereqs": ["pytorch", "math"],
-     "learn": [["Spinning Up in Deep RL", "https://spinningup.openai.com"], ["Underactuated Robotics (MIT)", "https://underactuated.mit.edu"]],
-     "project": "Train an agent in a Gymnasium environment and plot its learning curve against a random baseline."},
-    {"id": "cpp", "name": "Modern C++", "hours": 40, "prereqs": ["python"],
-     "learn": [["learncpp.com", "https://www.learncpp.com"]],
-     "project": "Rewrite a slow Python function in C++, bind it with pybind11, and benchmark the speedup."},
-    {"id": "cuda", "name": "GPU programming and CUDA", "hours": 50, "prereqs": ["cpp", "pytorch"],
-     "learn": [["CUDA C++ Programming Guide (NVIDIA)", "https://docs.nvidia.com/cuda/cuda-c-programming-guide/"], ["GPU MODE lectures", "https://github.com/gpu-mode/lectures"], ["Triton tutorials", "https://triton-lang.org/main/getting-started/tutorials/index.html"]],
-     "project": "Write a matrix-multiply kernel, optimize it step by step, and chart your speed against cuBLAS."},
-    {"id": "distributed", "name": "Distributed systems and training", "hours": 40, "prereqs": ["python", "git"],
-     "learn": [["MIT 6.5840 Distributed Systems", "https://pdos.csail.mit.edu/6.824/"], ["PyTorch distributed overview", "https://pytorch.org/tutorials/beginner/dist_overview.html"]],
-     "project": "Train one model on multiple GPUs or processes with data parallelism and measure scaling efficiency."},
-    {"id": "mlops", "name": "MLOps: shipping and serving models", "hours": 30, "prereqs": ["git", "ml"],
-     "learn": [["Made With ML", "https://madewithml.com"], ["Full Stack Deep Learning", "https://fullstackdeeplearning.com"], ["Docker get started", "https://docs.docker.com/get-started/"]],
-     "project": "Serve a model behind an API in Docker, add monitoring, and load-test it."},
-    {"id": "research", "name": "Reading and reproducing papers", "hours": 40, "prereqs": ["pytorch", "math"],
-     "learn": [["Hugging Face daily papers", "https://huggingface.co/papers"], ["arXiv cs.LG", "https://arxiv.org/list/cs.LG/recent"]],
-     "project": "Reproduce one table from a recent paper, then write up what matched and what did not."},
-    {"id": "quantfin", "name": "Markets, probability puzzles and alpha research", "hours": 40, "prereqs": ["stats", "math"],
-     "learn": [["MIT 6.041 Probability", "https://ocw.mit.edu/courses/6-041sc-probabilistic-systems-analysis-and-applied-probability-fall-2013/"], ["Jane Street puzzles", "https://www.janestreet.com/puzzles/"]],
-     "project": "Backtest a simple strategy on free daily data with proper train/test splits and transaction costs."},
-    {"id": "portfolio", "name": "Ship a flagship project", "hours": 40, "prereqs": [],
-     "learn": [["How to write a great README", "https://www.makeareadme.com"]],
-     "project": "Pick your best project above, polish it, add results and a demo, and post a write-up. This is what recruiters click."}
-  ],
-  "tracks": {
-    "mle":      {"skills": ["python", "git", "math", "sql", "ml", "pytorch", "mlops", "portfolio"]},
-    "llm":      {"skills": ["python", "git", "math", "ml", "pytorch", "llms", "rag", "mlops", "portfolio"]},
-    "research": {"skills": ["python", "math", "stats", "ml", "pytorch", "llms", "research", "portfolio"]},
-    "vision":   {"skills": ["python", "git", "math", "ml", "pytorch", "cv", "mlops", "portfolio"]},
-    "nlp":      {"skills": ["python", "math", "ml", "pytorch", "nlp", "llms", "portfolio"]},
-    "robotics": {"skills": ["python", "math", "cpp", "ml", "pytorch", "rl", "cv", "portfolio"]},
-    "infra":    {"skills": ["python", "git", "cpp", "ml", "pytorch", "cuda", "distributed", "llms", "portfolio"]},
-    "mlops":    {"skills": ["python", "git", "sql", "ml", "mlops", "distributed", "portfolio"]},
-    "quant":    {"skills": ["python", "math", "stats", "sql", "ml", "quantfin", "cpp", "portfolio"]},
-    "ds":       {"skills": ["python", "math", "stats", "sql", "ml", "portfolio"]}
+ "skills": [
+  {
+   "id": "python",
+   "name": "Python and tooling",
+   "hours": 30,
+   "prereqs": [],
+   "learn": [
+    [
+     "Python tutorial (official)",
+     "https://docs.python.org/3/tutorial/"
+    ],
+    [
+     "The Missing Semester (MIT)",
+     "https://missing.csail.mit.edu"
+    ]
+   ],
+   "project": "Write a command-line tool that cleans a messy CSV and prints a summary. Put it on GitHub with a README."
+  },
+  {
+   "id": "git",
+   "name": "Git, Linux and the command line",
+   "hours": 10,
+   "prereqs": [],
+   "learn": [
+    [
+     "The Missing Semester (MIT)",
+     "https://missing.csail.mit.edu"
+    ],
+    [
+     "Pro Git book",
+     "https://git-scm.com/book/en/v2"
+    ]
+   ],
+   "project": "Contribute one fix or doc improvement to an open-source repo you use."
+  },
+  {
+   "id": "math",
+   "name": "Linear algebra, calculus and probability",
+   "hours": 40,
+   "prereqs": [],
+   "learn": [
+    [
+     "Essence of Linear Algebra (3Blue1Brown)",
+     "https://www.3blue1brown.com/topics/linear-algebra"
+    ],
+    [
+     "MIT 18.06 Linear Algebra",
+     "https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/"
+    ],
+    [
+     "Seeing Theory (probability)",
+     "https://seeing-theory.brown.edu"
+    ]
+   ],
+   "project": "Implement linear regression with gradient descent using only NumPy, and plot the loss going down."
+  },
+  {
+   "id": "stats",
+   "name": "Statistics and experimentation",
+   "hours": 25,
+   "prereqs": [
+    "math"
+   ],
+   "learn": [
+    [
+     "Think Stats (free book)",
+     "https://greenteapress.com/wp/think-stats-2e/"
+    ],
+    [
+     "Seeing Theory",
+     "https://seeing-theory.brown.edu"
+    ]
+   ],
+   "project": "Analyze a public A/B test dataset: confidence intervals, p-values, and a one-page write-up of the decision."
+  },
+  {
+   "id": "sql",
+   "name": "SQL and data wrangling",
+   "hours": 20,
+   "prereqs": [
+    "python"
+   ],
+   "learn": [
+    [
+     "SQLBolt",
+     "https://sqlbolt.com"
+    ],
+    [
+     "Kaggle Learn: Pandas and SQL",
+     "https://www.kaggle.com/learn"
+    ]
+   ],
+   "project": "Load a public dataset into SQLite, answer five business questions with SQL, and chart the answers."
+  },
+  {
+   "id": "ml",
+   "name": "Classical machine learning",
+   "hours": 40,
+   "prereqs": [
+    "python",
+    "math"
+   ],
+   "learn": [
+    [
+     "Machine Learning Specialization (Andrew Ng)",
+     "https://www.coursera.org/specializations/machine-learning-introduction"
+    ],
+    [
+     "Stanford CS229",
+     "https://cs229.stanford.edu"
+    ],
+    [
+     "scikit-learn user guide",
+     "https://scikit-learn.org/stable/user_guide.html"
+    ]
+   ],
+   "project": "Enter a Kaggle playground competition and beat the baseline with honest cross-validation."
+  },
+  {
+   "id": "pytorch",
+   "name": "Deep learning with PyTorch",
+   "hours": 50,
+   "prereqs": [
+    "ml"
+   ],
+   "learn": [
+    [
+     "Neural Networks: Zero to Hero (Karpathy)",
+     "https://karpathy.ai/zero-to-hero.html"
+    ],
+    [
+     "Practical Deep Learning (fast.ai)",
+     "https://course.fast.ai"
+    ],
+    [
+     "Dive into Deep Learning",
+     "https://d2l.ai"
+    ],
+    [
+     "PyTorch tutorials",
+     "https://pytorch.org/tutorials/"
+    ]
+   ],
+   "project": "Train a small image or text classifier from scratch in PyTorch and report accuracy with a confusion matrix."
+  },
+  {
+   "id": "llms",
+   "name": "Transformers and LLMs",
+   "hours": 50,
+   "prereqs": [
+    "pytorch"
+   ],
+   "learn": [
+    [
+     "Let's build GPT (Karpathy)",
+     "https://karpathy.ai/zero-to-hero.html"
+    ],
+    [
+     "Hugging Face LLM course",
+     "https://huggingface.co/learn"
+    ],
+    [
+     "Stanford CS336: Language Modeling from Scratch",
+     "https://cs336.stanford.edu"
+    ]
+   ],
+   "project": "Fine-tune a small open model on a task you care about and compare it to the base model on 100 held-out examples."
+  },
+  {
+   "id": "rag",
+   "name": "RAG, agents and evals",
+   "hours": 30,
+   "prereqs": [
+    "llms"
+   ],
+   "learn": [
+    [
+     "DeepLearning.AI short courses",
+     "https://www.deeplearning.ai/short-courses/"
+    ],
+    [
+     "Hugging Face Agents course",
+     "https://huggingface.co/learn"
+    ]
+   ],
+   "project": "Build a question-answering app over your own documents, with an eval set that measures how often it is right."
+  },
+  {
+   "id": "cv",
+   "name": "Computer vision",
+   "hours": 40,
+   "prereqs": [
+    "pytorch"
+   ],
+   "learn": [
+    [
+     "Stanford CS231n",
+     "https://cs231n.stanford.edu"
+    ],
+    [
+     "OpenCV docs",
+     "https://docs.opencv.org"
+    ]
+   ],
+   "project": "Fine-tune an object detector on a custom dataset you labeled yourself, and demo it on video."
+  },
+  {
+   "id": "nlp",
+   "name": "NLP and speech",
+   "hours": 40,
+   "prereqs": [
+    "pytorch"
+   ],
+   "learn": [
+    [
+     "Stanford CS224n",
+     "https://web.stanford.edu/class/cs224n/"
+    ],
+    [
+     "Hugging Face course",
+     "https://huggingface.co/learn"
+    ]
+   ],
+   "project": "Build a search or classification system over real text and measure precision and recall."
+  },
+  {
+   "id": "rl",
+   "name": "Reinforcement learning and control",
+   "hours": 45,
+   "prereqs": [
+    "pytorch",
+    "math"
+   ],
+   "learn": [
+    [
+     "Spinning Up in Deep RL",
+     "https://spinningup.openai.com"
+    ],
+    [
+     "Underactuated Robotics (MIT)",
+     "https://underactuated.mit.edu"
+    ]
+   ],
+   "project": "Train an agent in a Gymnasium environment and plot its learning curve against a random baseline."
+  },
+  {
+   "id": "cpp",
+   "name": "Modern C++",
+   "hours": 40,
+   "prereqs": [
+    "python"
+   ],
+   "learn": [
+    [
+     "learncpp.com",
+     "https://www.learncpp.com"
+    ]
+   ],
+   "project": "Rewrite a slow Python function in C++, bind it with pybind11, and benchmark the speedup."
+  },
+  {
+   "id": "cuda",
+   "name": "GPU programming and CUDA",
+   "hours": 50,
+   "prereqs": [
+    "cpp",
+    "pytorch"
+   ],
+   "learn": [
+    [
+     "CUDA C++ Programming Guide (NVIDIA)",
+     "https://docs.nvidia.com/cuda/cuda-c-programming-guide/"
+    ],
+    [
+     "GPU MODE lectures",
+     "https://github.com/gpu-mode/lectures"
+    ],
+    [
+     "Triton tutorials",
+     "https://triton-lang.org/main/getting-started/tutorials/index.html"
+    ]
+   ],
+   "project": "Write a matrix-multiply kernel, optimize it step by step, and chart your speed against cuBLAS."
+  },
+  {
+   "id": "distributed",
+   "name": "Distributed systems and training",
+   "hours": 40,
+   "prereqs": [
+    "python",
+    "git"
+   ],
+   "learn": [
+    [
+     "MIT 6.5840 Distributed Systems",
+     "https://pdos.csail.mit.edu/6.824/"
+    ],
+    [
+     "PyTorch distributed overview",
+     "https://pytorch.org/tutorials/beginner/dist_overview.html"
+    ]
+   ],
+   "project": "Train one model on multiple GPUs or processes with data parallelism and measure scaling efficiency."
+  },
+  {
+   "id": "mlops",
+   "name": "MLOps: shipping and serving models",
+   "hours": 30,
+   "prereqs": [
+    "git",
+    "ml"
+   ],
+   "learn": [
+    [
+     "Made With ML",
+     "https://madewithml.com"
+    ],
+    [
+     "Full Stack Deep Learning",
+     "https://fullstackdeeplearning.com"
+    ],
+    [
+     "Docker get started",
+     "https://docs.docker.com/get-started/"
+    ]
+   ],
+   "project": "Serve a model behind an API in Docker, add monitoring, and load-test it."
+  },
+  {
+   "id": "research",
+   "name": "Reading and reproducing papers",
+   "hours": 40,
+   "prereqs": [
+    "pytorch",
+    "math"
+   ],
+   "learn": [
+    [
+     "Hugging Face daily papers",
+     "https://huggingface.co/papers"
+    ],
+    [
+     "arXiv cs.LG",
+     "https://arxiv.org/list/cs.LG/recent"
+    ]
+   ],
+   "project": "Reproduce one table from a recent paper, then write up what matched and what did not."
+  },
+  {
+   "id": "quantfin",
+   "name": "Markets, probability puzzles and alpha research",
+   "hours": 40,
+   "prereqs": [
+    "stats",
+    "math"
+   ],
+   "learn": [
+    [
+     "MIT 6.041 Probability",
+     "https://ocw.mit.edu/courses/6-041sc-probabilistic-systems-analysis-and-applied-probability-fall-2013/"
+    ],
+    [
+     "Jane Street puzzles",
+     "https://www.janestreet.com/puzzles/"
+    ]
+   ],
+   "project": "Backtest a simple strategy on free daily data with proper train/test splits and transaction costs."
+  },
+  {
+   "id": "dsa",
+   "name": "Data structures and algorithms",
+   "hours": 50,
+   "prereqs": [
+    "python"
+   ],
+   "learn": [
+    [
+     "Harvard CS50x",
+     "https://cs50.harvard.edu/x/"
+    ],
+    [
+     "NeetCode roadmap",
+     "https://neetcode.io/roadmap"
+    ]
+   ],
+   "project": "Solve 75 classic interview problems in one language and write up the patterns you used."
+  },
+  {
+   "id": "web",
+   "name": "Web apps: JavaScript, React and APIs",
+   "hours": 50,
+   "prereqs": [
+    "dsa"
+   ],
+   "learn": [
+    [
+     "The Odin Project",
+     "https://www.theodinproject.com"
+    ],
+    [
+     "MDN Learn web development",
+     "https://developer.mozilla.org/en-US/docs/Learn"
+    ]
+   ],
+   "project": "Build and deploy a full-stack app with sign-in and a database, and put the live link on your resume."
+  },
+  {
+   "id": "cloud",
+   "name": "Cloud, Linux and DevOps",
+   "hours": 30,
+   "prereqs": [
+    "git"
+   ],
+   "learn": [
+    [
+     "AWS Skill Builder (free courses)",
+     "https://skillbuilder.aws"
+    ],
+    [
+     "The Missing Semester (MIT)",
+     "https://missing.csail.mit.edu"
+    ]
+   ],
+   "project": "Containerize one of your projects, deploy it to a free cloud tier, and add CI that runs your tests."
+  },
+  {
+   "id": "excel",
+   "name": "Excel and spreadsheet modeling",
+   "hours": 15,
+   "prereqs": [],
+   "learn": [
+    [
+     "Microsoft Excel training",
+     "https://support.microsoft.com/en-us/excel"
+    ],
+    [
+     "Khan Academy: Finance and capital markets",
+     "https://www.khanacademy.org/economics-finance-domain/core-finance"
+    ]
+   ],
+   "project": "Build a budget or sales model with lookups, pivot tables and a chart, and walk someone through it."
+  },
+  {
+   "id": "finmodel",
+   "name": "Financial statements, modeling and valuation",
+   "hours": 40,
+   "prereqs": [
+    "excel"
+   ],
+   "learn": [
+    [
+     "Aswath Damodaran: Valuation (NYU, free)",
+     "https://pages.stern.nyu.edu/~adamodar/"
+    ],
+    [
+     "Corporate Finance Institute free courses",
+     "https://corporatefinanceinstitute.com/collections/free-courses/"
+    ]
+   ],
+   "project": "Build a three-statement model and a DCF for a public company, then write a one-page buy or sell note."
+  },
+  {
+   "id": "accounting",
+   "name": "Accounting, audit and tax basics",
+   "hours": 35,
+   "prereqs": [
+    "excel"
+   ],
+   "learn": [
+    [
+     "Khan Academy: Accounting and financial statements",
+     "https://www.khanacademy.org/economics-finance-domain/core-finance/accounting-and-financial-stateme"
+    ],
+    [
+     "IRS: Understanding taxes",
+     "https://apps.irs.gov/app/understandingTaxes/"
+    ]
+   ],
+   "project": "Record a month of transactions for a made-up small business and produce its income statement and balance sheet."
+  },
+  {
+   "id": "casework",
+   "name": "Case interviews and business problem solving",
+   "hours": 30,
+   "prereqs": [
+    "excel"
+   ],
+   "learn": [
+    [
+     "Victor Cheng: Case interview videos",
+     "https://www.caseinterview.com"
+    ],
+    [
+     "McKinsey: Interviewing",
+     "https://www.mckinsey.com/careers/interviewing"
+    ]
+   ],
+   "project": "Practice 20 cases with a partner, then size a real market and present a recommendation in five slides."
+  },
+  {
+   "id": "digital",
+   "name": "Digital marketing and analytics",
+   "hours": 30,
+   "prereqs": [],
+   "learn": [
+    [
+     "Google: Fundamentals of Digital Marketing",
+     "https://skillshop.withgoogle.com"
+    ],
+    [
+     "HubSpot Academy (free)",
+     "https://academy.hubspot.com"
+    ]
+   ],
+   "project": "Run a small campaign for a club or local business, track it in Google Analytics, and report what moved the numbers."
+  },
+  {
+   "id": "sales",
+   "name": "Sales, CRM and business development",
+   "hours": 20,
+   "prereqs": [],
+   "learn": [
+    [
+     "HubSpot Academy: Inbound Sales",
+     "https://academy.hubspot.com"
+    ],
+    [
+     "Salesforce Trailhead",
+     "https://trailhead.salesforce.com"
+    ]
+   ],
+   "project": "Write a target list and outreach sequence for a real product, log it in a free CRM, and report your reply rate."
+  },
+  {
+   "id": "design",
+   "name": "UX and visual design in Figma",
+   "hours": 40,
+   "prereqs": [],
+   "learn": [
+    [
+     "Figma: Learn design",
+     "https://www.figma.com/resource-library/"
+    ],
+    [
+     "Nielsen Norman Group articles",
+     "https://www.nngroup.com/articles/"
+    ]
+   ],
+   "project": "Redesign a screen of an app you use: interview three users, prototype it in Figma, and test the new version."
+  },
+  {
+   "id": "productsense",
+   "name": "Product management: users, metrics and roadmaps",
+   "hours": 30,
+   "prereqs": [],
+   "learn": [
+    [
+     "SVPG articles (Marty Cagan)",
+     "https://www.svpg.com/articles/"
+    ],
+    [
+     "Google: Product management (free course list)",
+     "https://grow.google/certificates/"
+    ]
+   ],
+   "project": "Write a one-page spec for a feature you wish existed, with the user problem, success metric and launch plan."
+  },
+  {
+   "id": "circuits",
+   "name": "Circuits and digital logic",
+   "hours": 50,
+   "prereqs": [
+    "math"
+   ],
+   "learn": [
+    [
+     "MIT OCW 6.002 Circuits and Electronics",
+     "https://ocw.mit.edu/courses/6-002-circuits-and-electronics-spring-2007/"
+    ],
+    [
+     "Nand to Tetris",
+     "https://www.nand2tetris.org"
+    ]
+   ],
+   "project": "Design, simulate and build a small circuit board (for example a sensor logger), and document every design choice."
+  },
+  {
+   "id": "cad",
+   "name": "CAD and mechanical design",
+   "hours": 40,
+   "prereqs": [
+    "math"
+   ],
+   "learn": [
+    [
+     "Onshape Learning Center",
+     "https://learn.onshape.com"
+    ],
+    [
+     "MATLAB Onramp",
+     "https://matlabacademy.mathworks.com"
+    ]
+   ],
+   "project": "Model and 3D-print a working part, with drawings, tolerances and a short test report."
+  },
+  {
+   "id": "embedded",
+   "name": "Embedded systems and firmware",
+   "hours": 45,
+   "prereqs": [
+    "cpp"
+   ],
+   "learn": [
+    [
+     "Embedded Systems - Shape the World (UT Austin)",
+     "https://users.ece.utexas.edu/~valvano/Volume1/E-Book/"
+    ],
+    [
+     "Arduino documentation",
+     "https://docs.arduino.cc"
+    ]
+   ],
+   "project": "Write firmware for a microcontroller project that reads a sensor, controls an output and logs data."
+  },
+  {
+   "id": "supplychain",
+   "name": "Operations, supply chain and process improvement",
+   "hours": 30,
+   "prereqs": [
+    "excel"
+   ],
+   "learn": [
+    [
+     "MITx Supply Chain Management (audit free)",
+     "https://www.edx.org/masters/micromasters/mitx-supply-chain-management"
+    ],
+    [
+     "ASQ: Lean and Six Sigma basics",
+     "https://asq.org/quality-resources/lean"
+    ]
+   ],
+   "project": "Map a real process (a cafeteria line, a club's event setup), measure it, and cut its time with one change."
+  },
+  {
+   "id": "people",
+   "name": "HR, recruiting and people operations",
+   "hours": 20,
+   "prereqs": [],
+   "learn": [
+    [
+     "SHRM resources",
+     "https://www.shrm.org/topics-tools"
+    ],
+    [
+     "LinkedIn Talent Blog",
+     "https://www.linkedin.com/business/talent/blog"
+    ]
+   ],
+   "project": "Design a hiring process for a student organization: job description, rubric, interview questions and onboarding plan."
+  },
+  {
+   "id": "lab",
+   "name": "Lab techniques and scientific research",
+   "hours": 40,
+   "prereqs": [
+    "stats"
+   ],
+   "learn": [
+    [
+     "Khan Academy: Biology",
+     "https://www.khanacademy.org/science/biology"
+    ],
+    [
+     "Rosalind bioinformatics problems",
+     "https://rosalind.info"
+    ]
+   ],
+   "project": "Join a campus lab or run a reproducible experiment, and write it up like a short paper with methods and results."
+  },
+  {
+   "id": "clinical",
+   "name": "Healthcare and clinical research",
+   "hours": 30,
+   "prereqs": [
+    "stats"
+   ],
+   "learn": [
+    [
+     "Johns Hopkins: Public health courses (Coursera audit)",
+     "https://www.coursera.org/jhu"
+    ],
+    [
+     "NIH: Clinical research training",
+     "https://ocr.od.nih.gov/courses/ippcr.html"
+    ]
+   ],
+   "project": "Analyze a public health dataset (CDC or WHO), and present one finding with its limitations to a non-expert audience."
+  },
+  {
+   "id": "portfolio",
+   "name": "Ship a flagship project",
+   "hours": 40,
+   "prereqs": [],
+   "learn": [
+    [
+     "How to write a great README",
+     "https://www.makeareadme.com"
+    ]
+   ],
+   "project": "Pick your best project above, polish it, add results and a demo, and post a write-up. This is what recruiters click."
   }
+ ],
+ "tracks": {
+  "mle": {
+   "skills": [
+    "python",
+    "git",
+    "math",
+    "sql",
+    "ml",
+    "pytorch",
+    "mlops",
+    "portfolio"
+   ]
+  },
+  "llm": {
+   "skills": [
+    "python",
+    "git",
+    "math",
+    "ml",
+    "pytorch",
+    "llms",
+    "rag",
+    "mlops",
+    "portfolio"
+   ]
+  },
+  "research": {
+   "skills": [
+    "python",
+    "math",
+    "stats",
+    "ml",
+    "pytorch",
+    "llms",
+    "research",
+    "portfolio"
+   ]
+  },
+  "vision": {
+   "skills": [
+    "python",
+    "git",
+    "math",
+    "ml",
+    "pytorch",
+    "cv",
+    "mlops",
+    "portfolio"
+   ]
+  },
+  "nlp": {
+   "skills": [
+    "python",
+    "math",
+    "ml",
+    "pytorch",
+    "nlp",
+    "llms",
+    "portfolio"
+   ]
+  },
+  "robotics": {
+   "skills": [
+    "python",
+    "math",
+    "cpp",
+    "ml",
+    "pytorch",
+    "rl",
+    "cv",
+    "portfolio"
+   ]
+  },
+  "infra": {
+   "skills": [
+    "python",
+    "git",
+    "cpp",
+    "ml",
+    "pytorch",
+    "cuda",
+    "distributed",
+    "llms",
+    "portfolio"
+   ]
+  },
+  "mlops": {
+   "skills": [
+    "python",
+    "git",
+    "sql",
+    "ml",
+    "mlops",
+    "distributed",
+    "portfolio"
+   ]
+  },
+  "quant": {
+   "skills": [
+    "python",
+    "math",
+    "stats",
+    "sql",
+    "ml",
+    "quantfin",
+    "cpp",
+    "portfolio"
+   ]
+  },
+  "ds": {
+   "skills": [
+    "python",
+    "math",
+    "stats",
+    "sql",
+    "ml",
+    "portfolio"
+   ]
+  },
+  "swe": {
+   "skills": [
+    "python",
+    "git",
+    "dsa",
+    "web",
+    "cloud",
+    "portfolio"
+   ]
+  },
+  "hardware": {
+   "skills": [
+    "math",
+    "circuits",
+    "cad",
+    "embedded",
+    "cpp",
+    "portfolio"
+   ]
+  },
+  "product": {
+   "skills": [
+    "productsense",
+    "design",
+    "sql",
+    "stats",
+    "portfolio"
+   ]
+  },
+  "finance": {
+   "skills": [
+    "excel",
+    "accounting",
+    "finmodel",
+    "stats",
+    "portfolio"
+   ]
+  },
+  "consulting": {
+   "skills": [
+    "excel",
+    "casework",
+    "finmodel",
+    "stats",
+    "portfolio"
+   ]
+  },
+  "marketing": {
+   "skills": [
+    "digital",
+    "sales",
+    "excel",
+    "stats",
+    "portfolio"
+   ]
+  },
+  "ops": {
+   "skills": [
+    "excel",
+    "supplychain",
+    "people",
+    "sql",
+    "portfolio"
+   ]
+  },
+  "science": {
+   "skills": [
+    "stats",
+    "lab",
+    "clinical",
+    "python",
+    "portfolio"
+   ]
+  }
+ }
 }
