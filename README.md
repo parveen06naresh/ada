@@ -5,7 +5,7 @@ Drop your resume and Ada ranks every open internship and new-grad role across te
 shows what you're missing, and tells you what to fix first. Your resume never leaves your device.</p>
 
 <p align="center">
-<b>14,000+</b> open roles · <b>10</b> fields · <b>3,000+</b> companies · <b>100</b> programs · <b>$0</b> to run
+<b>16,000+</b> open roles · <b>10</b> fields · <b>3,000+</b> companies · <b>100</b> programs · <b>$0</b> to run
 </p>
 
 <p align="center">Software · AI &amp; Data · Quant · Hardware · Product &amp; Design · Finance · Consulting · Marketing &amp; Sales · Operations &amp; People · Science &amp; Healthcare</p>
