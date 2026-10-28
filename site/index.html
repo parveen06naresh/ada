@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ada · AI careers, mapped</title>
-  <meta name="description" content="Every open AI, ML, data and quant internship and new-grad role in one place, plus hackathons, fellowships and grants, and a personal roadmap built from what employers ask for. Free and open source.">
+  <meta name="description" content="Drop your resume and see the AI, data and quant internships and new-grad roles you fit best, what you are missing, and what to fix first. Free, open source, and your resume never leaves your device.">
   <meta property="og:title" content="Ada · AI careers, mapped">
   <meta property="og:description" content="Thousands of open AI roles, refreshed daily, and a free roadmap to get there.">
   <meta property="og:image" content="https://parveen06naresh.github.io/ada/og.png">
@@ -22,6 +22,7 @@
     </a>
     <nav class="tabs" aria-label="Sections">
       <a href="#explore" data-view="explore">Explore</a>
+      <a href="#match" data-view="match">My matches</a>
       <a href="#foryou" data-view="foryou">For you</a>
       <a href="#roadmap" data-view="roadmap">Roadmap</a>
       <a href="#programs" data-view="programs">Programs</a>
@@ -34,12 +35,29 @@
 
   <main>
     <aside class="tour" id="tour" hidden>
-      <div><b>New here?</b> Three steps: <a href="#foryou">set your profile</a> (or paste your resume), <a href="#roadmap">get your roadmap</a>, then save roles with ☆. Press <kbd>/</kbd> to search.</div>
+      <div><b>New here?</b> Drop your resume above to see your matches, <a href="#roadmap">get your roadmap</a>, then save roles with ☆. Press <kbd>/</kbd> to search.</div>
       <button class="link" id="tour-close" aria-label="Dismiss">Got it</button>
     </aside>
     <section class="hero" id="hero">
-      <h1>AI careers, <em>mapped</em>.</h1>
-      <p class="lede">Every open AI, ML, data and quant internship and new-grad role we can find, refreshed daily. Plus hackathons, fellowships and grants, and a roadmap built from what employers actually ask for.</p>
+      <div class="hero-grid">
+        <div>
+          <p class="kicker"><span class="dot"></span> Live · rebuilt every morning from <span id="k-companies">1,700+</span> companies</p>
+          <h1>Find the roles you can <em>actually get</em>.</h1>
+          <p class="lede">Drop your resume. Ada ranks every open AI, data and quant internship and new-grad role by how well you fit, shows exactly what's missing, and tells you what to fix first. Free, built by a student, and your resume never leaves your device.</p>
+          <div class="trust"><span>✓ No sign-up to try</span><span>✓ Read on your device</span><span>✓ Open source</span></div>
+        </div>
+        <label class="drop" id="drop" for="resume-file">
+          <input type="file" id="resume-file" accept=".pdf,.docx,.txt,.md" hidden>
+          <span class="drop-icon" aria-hidden="true">⇪</span>
+          <b>Drop your resume here</b>
+          <span class="muted">PDF, Word or text · or <button type="button" class="link" id="paste-open">paste it</button></span>
+          <span class="drop-status" id="drop-status" aria-live="polite"></span>
+        </label>
+      </div>
+      <div class="paste" id="paste" hidden>
+        <textarea id="paste-text" rows="7" placeholder="Paste your whole resume here."></textarea>
+        <div class="actions"><button type="button" class="btn" id="paste-go">Match me</button><button type="button" class="btn ghost" id="paste-cancel">Cancel</button></div>
+      </div>
       <div class="stats" id="stats" aria-live="polite"></div>
     </section>
 
@@ -58,6 +76,28 @@
       <div class="result-bar"><span id="count"></span><button class="link" id="share-search">Copy link to this search</button></div>
       <ul class="cards" id="results"></ul>
       <button class="btn ghost more" id="more" hidden>Show more</button>
+    </section>
+
+    <!-- My matches -->
+    <section class="view" id="view-match" hidden>
+      <div id="m-empty" class="empty big">
+        <h2>Your matches start with your resume</h2>
+        <p>Drop it on the box at the top of the page. It's read on this device, never uploaded.</p>
+        <button class="btn" type="button" id="m-pick">Choose my resume</button>
+      </div>
+      <div id="m-out" hidden>
+        <div class="scorecard panel" id="m-card"></div>
+        <div class="grid two">
+          <div class="panel" id="m-gaps"></div>
+          <div class="panel" id="m-checks"></div>
+        </div>
+        <div class="result-bar">
+          <h2 class="h-inline">Your best matches</h2>
+          <div class="seg" id="m-kind" role="tablist"></div>
+        </div>
+        <ul class="cards" id="m-list"></ul>
+        <button class="btn ghost more" id="m-more" hidden>Show more</button>
+      </div>
     </section>
 
     <!-- For you -->

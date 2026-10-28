@@ -20,6 +20,7 @@ AI opportunities are scattered across a dozen GitHub trackers, job boards, unive
 
 | | |
 |---|---|
+| **My matches** | Drop your resume (PDF, Word or text). Ada reads it on your device, ranks every role by fit from 0 to 100, shows the skills you have and lack for each one, lists the skills that open up the most of your target roles, checks your resume the way recruiters and applicant tracking systems do, and gives you an Ada score to raise. Share your result as an image card. Your resume is never uploaded. |
 | **Explore** | Search and filter every role by role type, skill, level, country, remote and posting date. Share any search as a link. |
 | **For you** | Fill in a 30-second profile, or paste your resume and Ada reads your skills on your device. It ranks roles for you and shows the reason for every match ("Your goal: LLM Engineer · You know 2 of 3 core skills · Posted this week"). |
 | **AI coach** | Bring your own Anthropic API key and Claude writes your 90-day plan from your resume, your roadmap and today's best-matching openings: three portfolio projects, the roles to apply to now, and resume fixes. About 10 to 20 cents a plan, paid on your own key. |

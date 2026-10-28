@@ -3,6 +3,8 @@ import {
 } from "./match.js";
 import { MODEL, buildPrompt, friendlyError, renderMarkdown, runCoach } from "./coach.js";
 import * as sync from "./sync.js";
+import { fileToText } from "./upload.js";
+import { useJobs, useResumeTerms, adaScore, bestTracks, fitJob, gapPlan, parseResume, profileFromResume, rankByFit, resumeChecks, useGraph } from "./resume.js";
 
 const REPO = "https://github.com/parveen06naresh/ada";
 
@@ -31,6 +33,7 @@ const store = {
 };
 
 const SKILL_NAMES = {};
+const SHORT = { python: "Python", git: "Git", math: "Math", stats: "Statistics", sql: "SQL", ml: "ML", pytorch: "PyTorch", llms: "LLMs", rag: "RAG and agents", cv: "Computer vision", nlp: "NLP", rl: "RL", cpp: "C++", cuda: "CUDA", distributed: "Distributed systems", mlops: "MLOps", research: "Research", quantfin: "Markets" };
 const PROGRAM_TYPES = { all: "All", hackathon: "Hackathons", competition: "Competitions", fellowship: "Fellowships", research: "Research programs", grant: "Grants", startup: "Startup programs", compute: "Free compute" };
 const state = {
   jobs: [], programs: [], graph: null, stats: null,
@@ -41,6 +44,8 @@ const state = {
   streak: store.get("streak", {}),
   progType: "all",
   sharedView: null,
+  parsed: null,
+  mShown: 30,
 };
 
 function toast(msg) {
@@ -81,7 +86,14 @@ function ago(d) {
   return `${m} month${m > 1 ? "s" : ""} ago`;
 }
 
-function jobCard(j, why) {
+function fitRing(f) {
+  const r = el("div", { class: "fit", title: `${f.fit}% fit`, "aria-label": `${f.fit} percent fit` }, el("span", {}, `${f.fit}%`));
+  r.style.setProperty("--v", f.fit);
+  r.style.setProperty("--c", f.fit >= 80 ? "var(--good)" : f.fit >= 60 ? "var(--accent2)" : "var(--warn)");
+  return r;
+}
+
+function jobCard(j, why, f) {
   const on = state.saved.has(j.id);
   const save = el("button", { class: `save${on ? " on" : ""}`, title: on ? "Saved" : "Save", "aria-label": on ? "Unsave" : "Save", "aria-pressed": String(on) }, on ? "★" : "☆");
   save.addEventListener("click", () => {
@@ -99,16 +111,22 @@ function jobCard(j, why) {
     j.lv === "PhD" || j.lv === "Masters" ? el("span", { class: "tag" }, j.lv) : null,
     j.r ? el("span", { class: "tag" }, "Remote") : null,
     today() - j.d <= 3 ? el("span", { class: "tag new" }, "New") : null,
+    !f && state.parsed ? el("span", { class: "tag fitTag" }, `${fitJob(j, state.profile).fit}% fit`) : null,
     j.p ? el("span", { class: "tag pay" }, `$${Math.round(j.p)}/hr`) : null,
   );
   const where = j.l.length ? j.l.slice(0, 2).join(" · ") + (j.l.length > 2 ? ` +${j.l.length - 2}` : "") : "Location not listed";
-  return el("li", { class: "card" },
+  const skills = f && (f.have.length || f.missing.length) ? el("div", { class: "skillrow" },
+    ...f.have.map((s) => el("span", { class: "have" }, `✓ ${SHORT[s] || s}`)),
+    ...f.missing.map((s) => el("span", { class: "miss" }, `+ ${SHORT[s] || s}`))) : null;
+  return el("li", { class: `card${f ? " has-fit" : ""}` },
+    f ? fitRing(f) : null,
     logo(j.c, j.dm),
     el("div", {},
       el("h3", {}, el("a", { href: j.u, target: "_blank", rel: "noopener" }, j.t)),
       el("div", { class: "meta" }, el("b", {}, j.c), el("span", {}, where), el("span", {}, ago(j.d))),
       tags,
       why && why.length ? el("div", { class: "why" }, "✓ " + why.join(" · ")) : null,
+      skills,
     ),
     el("div", { class: "side" }, el("a", { class: "btn", href: j.u, target: "_blank", rel: "noopener" }, "Apply"), save, reportLink(`${j.c}: ${j.t}`, j.u)),
   );
@@ -152,6 +170,165 @@ function applySearchParams(p) {
   $("#f-remote").checked = p.get("remote") === "1";
 }
 
+/* ---------- My matches (resume first) ---------- */
+const STRONG = 75;
+let ready;
+const readyP = new Promise((ok) => { ready = ok; });
+
+async function takeResume(getText) {
+  const drop = $("#drop"), status = $("#drop-status");
+  drop.classList.add("busy");
+  status.textContent = "Reading your resume on this device…";
+  try {
+    const text = (await getText()).trim();
+    const r = parseResume(text);
+    if (text.split(/\s+/).length < 40 || r.skills.length < 1) throw new Error("We couldn't read much from that. If it's a scanned PDF, paste your resume as text instead.");
+    status.textContent = "Matching you against every open role…";
+    await readyP;
+    store.set("resume", text);
+    $("#p-resume").value = text;
+    state.parsed = r;
+    useResumeTerms(text);
+    state.profile = profileFromResume(r, state.graph, state.profile);
+    store.set("profile", state.profile);
+    fillProfile();
+    state.mShown = 30;
+    status.textContent = "";
+    $("#paste").hidden = true;
+    $("#tour").hidden = true;
+    store.set("toured", true);
+    if (location.hash === "#match") renderMatch(); else location.hash = "match";
+  } catch (e) {
+    status.textContent = e.message;
+    toast(e.message);
+  } finally {
+    drop.classList.remove("busy");
+  }
+}
+
+function strongCount(p) {
+  let n = 0, week = 0;
+  for (const j of state.jobs) {
+    if (fitJob(j, p).fit >= STRONG) { n++; if (today() - j.d <= 7) week++; }
+  }
+  return { n, week };
+}
+
+function renderMatch() {
+  const has = !!state.parsed;
+  $("#m-empty").hidden = has;
+  $("#m-out").hidden = !has;
+  if (!has || !state.jobs.length) return;
+  const p = state.profile, r = state.parsed;
+  const kind = p.kind || "any";
+  const pool = kind === "any" ? state.jobs : state.jobs.filter((j) => j.k === kind);
+  const ranked = rankByFit(pool, p, 2000);
+  const checks = resumeChecks(r);
+  const score = adaScore(ranked, checks);
+  const { n, week } = strongCount({ ...p, kind });
+  const tracks = bestTracks(state.graph, p.known || [], 3);
+  const kindWord = kind === "internship" ? "internships" : kind === "new-grad" ? "new-grad roles" : "roles";
+  state.card = { n, kindWord, top: ranked[0], score, track: TRACKS[p.tracks?.[0]] || tracks[0]?.name };
+
+  const R = 56, C = 2 * Math.PI * R;
+  const ring = el("div", { class: "big-ring" });
+  ring.innerHTML = `<svg viewBox="0 0 132 132" aria-hidden="true"><circle cx="66" cy="66" r="${R}" fill="none" stroke="var(--line)" stroke-width="10"/><circle cx="66" cy="66" r="${R}" fill="none" stroke="url(#mg)" stroke-width="10" stroke-linecap="round" stroke-dasharray="${C * score / 100} ${C}" transform="rotate(-90 66 66)"/><defs><linearGradient id="mg"><stop offset="0" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--accent2)"/></linearGradient></defs></svg>`;
+  ring.append(el("div", {}, el("b", {}, String(score)), el("span", {}, "Ada score")));
+  const grad = r.grad ? `Graduating ${new Date(r.grad.y, r.grad.m - 1).toLocaleString("en-US", { month: "short", year: "numeric" })}` : null;
+  $("#m-card").replaceChildren(
+    ring,
+    el("div", { class: "sc-main" },
+      el("h2", {}, `${fmt(n)} ${kindWord} are a strong fit for you`),
+      el("div", { class: "muted" }, `${fmt(week)} of them were posted this week. Your Ada score is 60% how well your skills fit your best 50 roles and 40% the resume checks you pass, so fixing your resume raises it.`),
+      el("div", { class: "sc-facts" },
+        el("span", { class: "tag" }, p.level === "New grad" ? "Bachelor's" : p.level === "Masters" ? "Master's" : p.level),
+        grad ? el("span", { class: "tag" }, grad) : null,
+        el("span", { class: "tag" }, `${(p.known || []).length} skills found`),
+        el("a", { class: "tag track", href: "#foryou" }, "Edit what we read →")),
+      el("div", { class: "sc-tracks" }, tracks.map((t) => {
+        const fill = el("div", { class: "fill" });
+        fill.style.width = `${Math.max(3, t.cover * 100)}%`;
+        return el("div", { class: "sc-track" }, el("span", {}, t.name), el("div", { class: "track-bg" }, fill), el("b", {}, `${Math.round(t.cover * 100)}%`));
+      })),
+    ),
+    el("div", { class: "actions" },
+      el("button", { class: "btn", onclick: shareCard }, "Share my card"),
+      el("button", { class: "btn ghost", onclick: () => $("#resume-file").click() }, "Try another resume")),
+  );
+
+  const gaps = gapPlan(state.jobs, p, state.graph, 4);
+  $("#m-gaps").replaceChildren(
+    el("h3", {}, "Raise your odds: learn these next"),
+    el("p", { class: "muted small" }, "The skills you lack that the most of your target roles ask for. Each one you learn raises your fit on all of them."),
+    ...(gaps.length ? gaps.map((g) => el("div", { class: "gap" },
+      el("b", {}, g.name),
+      el("span", { class: "plus" }, `${fmt(g.roles)} roles`),
+      el("span", { class: "muted" }, `About ${g.hours} hours. `, g.learn ? el("a", { href: g.learn[1], target: "_blank", rel: "noopener" }, `Start: ${g.learn[0]}`) : null, " · ", el("a", { href: "#roadmap" }, "Full roadmap")),
+    )) : [el("p", {}, "You already cover the core skills for your target roles. Ship a project that proves it.")]),
+  );
+
+  const passed = checks.filter((c) => c.ok).length;
+  $("#m-checks").replaceChildren(
+    el("h3", {}, `Resume fixes · ${passed} of ${checks.length} passed`),
+    el("p", { class: "muted small" }, "What recruiters and applicant tracking systems check first. Fix the ⚠ ones before you apply."),
+    el("ul", { class: "checks" }, checks.map((c) => el("li", { class: c.ok ? "ok" : "bad" },
+      el("span", { class: "ic" }, c.ok ? "✓" : "⚠"),
+      el("div", {}, el("b", {}, c.title), el("div", { class: "fix" }, c.fix))))),
+  );
+
+  $("#m-kind").replaceChildren(...[["internship", "Internships"], ["new-grad", "New grad"], ["any", "Both"]].map(([k, label]) => el("button", {
+    class: kind === k ? "on" : "", role: "tab", "aria-selected": String(kind === k),
+    onclick: () => { state.profile.kind = k; store.set("profile", state.profile); state.mShown = 30; fillProfile(); renderMatch(); },
+  }, label)));
+  $("#m-list").replaceChildren(...ranked.slice(0, state.mShown).map((x) => jobCard(x.j, null, x)));
+  $("#m-more").hidden = ranked.length <= state.mShown;
+}
+
+// A share image with no personal details: counts and the top track only.
+async function shareCard() {
+  const c = state.card;
+  const cv = document.createElement("canvas");
+  cv.width = 1200; cv.height = 630;
+  const g = cv.getContext("2d");
+  const bg = g.createLinearGradient(0, 0, 1200, 630);
+  bg.addColorStop(0, "#0b0920"); bg.addColorStop(1, "#071a24");
+  g.fillStyle = bg; g.fillRect(0, 0, 1200, 630);
+  const glow = g.createRadialGradient(1000, 80, 10, 1000, 80, 520);
+  glow.addColorStop(0, "rgba(124,92,255,.45)"); glow.addColorStop(1, "rgba(124,92,255,0)");
+  g.fillStyle = glow; g.fillRect(0, 0, 1200, 630);
+  const font = (w, px) => `${w} ${px}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, sans-serif`;
+  g.fillStyle = "#7c5cff"; g.beginPath(); g.moveTo(80, 118); g.lineTo(104, 74); g.lineTo(128, 118); g.closePath(); g.fill();
+  g.fillStyle = "#ecebf5"; g.font = font(700, 36); g.fillText("Ada", 144, 112);
+  g.font = font(800, 96); g.fillText(`${fmt(c.n)} ${c.kindWord}`, 80, 290);
+  g.fillStyle = "#9a98b3"; g.font = font(500, 40); g.fillText("are a strong fit for me right now.", 80, 350);
+  const grad = g.createLinearGradient(80, 0, 700, 0);
+  grad.addColorStop(0, "#7c5cff"); grad.addColorStop(1, "#22d3ee");
+  g.fillStyle = grad; g.font = font(700, 40); g.fillText(`Best track: ${c.track}`, 80, 440);
+  g.fillStyle = "#9a98b3"; g.font = font(500, 30); g.fillText(`Ada score ${c.score} · find yours free at parveen06naresh.github.io/ada`, 80, 550);
+  const blob = await new Promise((ok) => cv.toBlob(ok, "image/png"));
+  const file = new File([blob], "my-ada-matches.png", { type: "image/png" });
+  const text = `${fmt(c.n)} ${c.kindWord} are a strong fit for me right now. Find yours free: ${location.origin}${location.pathname}`;
+  if (navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file], text }); return; } catch { /* cancelled */ }
+  }
+  const a = el("a", { href: URL.createObjectURL(blob), download: file.name });
+  document.body.append(a); a.click(); a.remove();
+  copy(text, "Card saved. Caption copied too.");
+}
+
+function initDrop() {
+  const drop = $("#drop"), input = $("#resume-file");
+  input.addEventListener("change", () => { const f = input.files[0]; if (f) takeResume(() => fileToText(f)); input.value = ""; });
+  for (const ev of ["dragenter", "dragover"]) drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); });
+  for (const ev of ["dragleave", "drop"]) drop.addEventListener(ev, () => drop.classList.remove("over"));
+  drop.addEventListener("drop", (e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) takeResume(() => fileToText(f)); });
+  $("#paste-open").addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); $("#paste").hidden = false; $("#paste-text").focus(); });
+  $("#paste-cancel").addEventListener("click", () => { $("#paste").hidden = true; });
+  $("#paste-go").addEventListener("click", () => takeResume(async () => $("#paste-text").value));
+  $("#m-pick").addEventListener("click", () => input.click());
+  $("#m-more").addEventListener("click", () => { state.mShown += 40; renderMatch(); });
+}
+
 /* ---------- For you ---------- */
 function readProfile() {
   const p = state.profile;
@@ -193,6 +370,7 @@ function fillProfile() {
 
 function readResume() {
   const text = $("#p-resume").value;
+  if (text.trim().split(/\s+/).length >= 40) { state.parsed = parseResume(text); useResumeTerms(text); }
   store.set("resume", text);
   const found = detectSkills(text);
   const p = state.profile;
@@ -445,7 +623,7 @@ function exportCsv() {
 function updateSavedCount() { $("#saved-count").textContent = state.saved.size || ""; }
 
 /* ---------- Routing ---------- */
-const VIEWS = ["explore", "foryou", "roadmap", "programs", "trends", "saved"];
+const VIEWS = ["explore", "match", "foryou", "roadmap", "programs", "trends", "saved"];
 function route() {
   const [view, arg] = (location.hash.slice(1) || "explore").split("/");
   const v = VIEWS.includes(view) ? view : "explore";
@@ -458,7 +636,7 @@ function route() {
   document.querySelectorAll(".tabs a").forEach((a) => a.classList.toggle("on", a.dataset.view === v));
   document.body.classList.toggle("compact", v !== "explore");
   scrollTo(0, 0);
-  ({ explore: renderExplore, foryou: renderForYou, roadmap: renderRoadmap, programs: renderPrograms, trends: renderTrends, saved: renderSaved })[v]();
+  ({ explore: renderExplore, match: renderMatch, foryou: renderForYou, roadmap: renderRoadmap, programs: renderPrograms, trends: renderTrends, saved: renderSaved })[v]();
 }
 
 /* ---------- Boot ---------- */
@@ -553,6 +731,9 @@ function initAccount() {
 async function boot() {
   initTheme();
   initAccount();
+  initDrop();
+  const savedResume = store.get("resume", "");
+  if (savedResume) { state.parsed = parseResume(savedResume); useResumeTerms(savedResume); }
   const get = (f) => fetch(`data/${f}`).then((r) => { if (!r.ok) throw new Error(`${f}: ${r.status}`); return r.json(); });
   // Small files first so the page paints right away; the big role list follows.
   const big = get("opportunities.json");
@@ -562,6 +743,7 @@ async function boot() {
     let latest;
     [state.programs, state.graph, state.stats, latest] = await Promise.all([get("programs.json"), get("skills.json"), get("stats.json"), get("latest.json").catch(() => null)]);
     renderStats();
+    $("#k-companies").textContent = `${fmt(state.stats.companies)}`;
     if (latest && (location.hash.slice(1) || "explore") === "explore" && !location.search) {
       for (const s of state.graph.skills) SKILL_NAMES[s.id] = s.name;
       $("#view-explore").hidden = false;
@@ -575,6 +757,8 @@ async function boot() {
   }
   state.jobs = unpackJobs(opp);
   for (const s of state.graph.skills) SKILL_NAMES[s.id] = s.name;
+  useGraph(state.graph);
+  useJobs(state.jobs);
   const s = state.stats;
   $("#updated").textContent = `Updated ${new Date(opp.updated * 1000).toLocaleString()}`;
 
@@ -603,6 +787,7 @@ async function boot() {
   $("#profile").addEventListener("input", (e) => {
     if (e.target.id === "p-resume" || e.target.id === "p-alerts") return;
     if (e.target.id === "p-hours") $("#p-hours-out").value = e.target.value;
+    if (e.target.id === "p-track" || e.target.id === "p-track2") state.profile.tracksFromUser = true;
     readProfile();
     renderForYou();
   });
@@ -627,6 +812,7 @@ async function boot() {
   updateSavedCount();
   addEventListener("hashchange", route);
   route();
+  ready();
 }
 
 boot();
