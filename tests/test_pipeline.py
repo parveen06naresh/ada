@@ -122,6 +122,10 @@ def test_fields():
     assert enrich.role_of("Quantitative Trader Intern") == ("quant", "quant")
     assert enrich.role_of("Summer Analyst", "Finance") == ("finance", "finance")
     assert enrich.role_of("Forklift Operator") is None
+    # A tracker's "Data Science & AI" category maps to the AI field; the track must still be a real AI track
+    field, track = enrich.role_of("Summer 2027 Intern", "Data Science & AI")
+    assert field == "ai" and track in enrich.AI_TRACKS
+    enrich.skills_of("Summer 2027 Intern", track)
 
 
 def test_curated_data_is_consistent():

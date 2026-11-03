@@ -112,6 +112,9 @@ def role_of(title: str, category: str = "") -> tuple[str, str] | None:
         if rx.search(title):
             return field, field
     f = CATEGORY_FIELD.get(category)
+    if f == "ai":  # "ai" is a field, not a track: pick the AI track the title fits best
+        track = track_of(title, category)
+        return ("quant" if track == "quant" else "ai"), track
     return (f, f) if f else None
 
 US_STATES = (
