@@ -600,7 +600,7 @@ function renderPrograms() {
       el("p", { class: "muted", style: "margin:6px 0 0" }, p.summary),
       el("div", { class: "tags" },
         el("span", { class: "tag track" }, PROGRAM_TYPES[p.type].replace(/s$/, "")),
-        el("span", { class: "tag" }, p.who),
+        p.who ? el("span", { class: "tag" }, p.who) : null,
         p.amount ? el("span", { class: "tag pay" }, p.amount) : null,
         closing(p)),
     ),
