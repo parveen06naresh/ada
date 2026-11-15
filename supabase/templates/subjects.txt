@@ -1,0 +1,4 @@
+confirm_signup: Confirm your email for Ada
+magic_link: Your Ada sign-in link
+reset_password: Reset your Ada password
+change_email: Confirm your new email for Ada

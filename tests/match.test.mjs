@@ -130,6 +130,7 @@ test("weekly digest lists only this week's matches and carries an unsubscribe li
   assert.match(m.text, /LLM Engineer Intern/);
   assert.doesNotMatch(m.text, /LLM Research Intern/);
   assert.match(m.unsubscribe, /\?unsubscribe=tok_123456789012345678$/);
-  assert.match(m.html, /Unsubscribe<\/a>/);
+  assert.match(m.html, /Unsubscribe in one click<\/a>/);
+  assert.doesNotMatch(m.html, /\[\[/);
   assert.equal(digest("a@b.co", { ...profile, tracks: ["quant"], known: [] }, [], NOW), null);
 });

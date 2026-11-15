@@ -30,7 +30,7 @@ Early-career roles are scattered across a dozen GitHub trackers, employer career
 | **Programs** | 100 hand-picked hackathons, competitions, fellowships, research programs, grants, startup accelerators and free-compute programs. |
 | **Trends** | New roles per week, open roles by track, the skills employers ask for, the best-paying roles that publish pay, who is hiring most, and where. |
 | **Weekly email** | Sign in and Ada emails you your best new matches every Monday, with the reason each one fits. One-click unsubscribe. There's also an RSS feed of every new role. |
-| **Saved** | Star roles and export them to CSV for your application tracker. |
+| **Applications** | Star roles, then track each one on a board from saved to applied, interviewing and offer, with notes. Export to CSV. |
 | **Trust** | Every listing links to the employer's own posting and has a "Report" link. A weekly job clicks every program and course link and opens an issue for any that break. |
 
 ![Roadmap view](docs/roadmap.png)
@@ -39,7 +39,7 @@ Early-career roles are scattered across a dozen GitHub trackers, employer career
 
 You never need an account. By default your profile, resume, saved roles and progress stay in your browser. If you use the AI coach, your key and prompt go from your browser straight to Anthropic, never to us. The whole site is static files on GitHub Pages, and a GitHub Action rebuilds the data every morning. Running it costs nothing.
 
-**Optional sync and weekly email.** Sign in with GitHub or an email link to carry your saved roles, profile, resume and roadmap progress across devices. It runs on a free Supabase project with row-level security, so each person can read and write only their own row (`supabase/schema.sql`). Your API key and AI plans are never synced, and "Delete my cloud data" removes your row. Weekly emails go out from a GitHub Action (`.github/workflows/alerts.yml`) that scores roles with the same code as the site and sends through any SMTP service. Forks turn all of this on by filling in `site/config.js` and the repo secrets listed in that workflow; left empty, the sign-in button does not appear.
+**Free accounts and email.** Sign up with an email and password (or an email link) to carry your saved roles, applications, profile, resume and roadmap progress across devices. It runs on a free Supabase project with row-level security, so each person can read and write only their own row (`supabase/schema.sql`), and "Delete my account" removes the login and the data. Your API key and AI plans are never synced. Sign-up confirmation, sign-in link and password reset emails use the templates in `supabase/templates/`; the welcome email (`.github/workflows/account-emails.yml`) and the Monday matches email (`.github/workflows/alerts.yml`) are sent by GitHub Actions through any SMTP service. Setup steps: [docs/ACCOUNTS.md](docs/ACCOUNTS.md). Left unconfigured, the sign-in button does not appear and everything stays in the browser.
 
 ## Fast on a phone
 
