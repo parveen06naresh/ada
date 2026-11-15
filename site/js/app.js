@@ -55,28 +55,91 @@ const state = {
 const locked = () => sync.gate && sync.authStatus() !== "off" && !sync.currentUser();
 const ASKS = {
   signup: ["Create your free Ada account", "One account turns Ada from a job list into your job search."],
-  login: ["Welcome back", "Enter the email you signed up with and we'll send you a one-tap sign-in link. No password."],
+  login: ["Welcome back", "Log in to see your matches, saved roles and applications."],
   save: ["Save it to your free account", "Saved roles follow you to every device, and you can track each one from applied to offer."],
   match: ["See every role you fit", "Your full ranked list and skill plan are one free account away. It takes 20 seconds."],
   plan: ["Unlock your skill plan", "See the skills that would raise your fit on the most roles, with hours and a free place to start."],
   alerts: ["Get your weekly matches", "Every Monday, only the new roles you fit. One click to unsubscribe."],
 };
-function askSignup(why = "signup", pending = null) {
-  const [title, sub] = ASKS[why] || ASKS.signup;
-  $("#acct-title").textContent = title;
-  $("#acct-why").textContent = sub;
-  document.querySelector("#account-dlg .perks").hidden = why === "login";
-  $("#acct-out").hidden = false; $("#acct-sent").hidden = true; $("#acct-in").hidden = true;
+const acct = { mode: "signup", why: "signup", magic: false };
+function acctPanel(name) {
+  for (const id of ["out", "sent", "reset", "in"]) $(`#acct-${id}`).hidden = id !== name;
+}
+function setMode(mode, why = acct.why) {
+  acct.mode = mode; acct.why = why;
+  const [title, sub] = mode === "login" ? ASKS.login : (ASKS[why] || ASKS.signup);
+  $("#acct-title").textContent = acct.magic ? (mode === "login" ? "Log in with an email link" : title) : title;
+  $("#acct-why").textContent = acct.magic ? "We'll email you a one-tap link. No password needed." : sub;
+  $("#acct-perks").hidden = mode === "login" || acct.magic;
+  for (const b of document.querySelectorAll(".acct-tabs button")) {
+    const on = b.dataset.mode === mode;
+    b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on));
+  }
+  $("#acct-pw-row").hidden = acct.magic;
+  $("#acct-pw").autocomplete = mode === "login" ? "current-password" : "new-password";
+  $("#acct-pw").placeholder = mode === "login" ? "Your password" : "At least 8 characters";
+  $("#acct-go").textContent = acct.magic ? "Email me a link" : mode === "login" ? "Log in" : "Create account";
+  $("#acct-forgot").hidden = mode !== "login" || acct.magic;
+  $("#acct-magic").textContent = acct.magic ? "Use a password instead" : "Email me a sign-in link instead";
   $("#acct-msg").textContent = "";
+}
+function askSignup(why = "signup", pending = null) {
+  acct.magic = false;
+  setMode(why === "login" ? "login" : "signup", why);
+  acctPanel("out");
   store.set("pending", pending);
-  $("#account-dlg").showModal();
+  if (!$("#account-dlg").open) $("#account-dlg").showModal();
   setTimeout(() => $("#acct-email").focus(), 50);
 }
 const STAGES = [["saved", "Saved"], ["applied", "Applied"], ["interview", "Interviewing"], ["offer", "Offer"], ["closed", "Closed"]];
-const stageOf = (id) => state.tracker[id]?.s || "saved";
+const stageOf = (id) => { const s = state.tracker[id]?.s; return s && s !== "removed" ? s : "saved"; };
+// A small copy of each saved role, so it stays on your board after the listing closes and drops out of the feed.
+const snap = (j) => ({ t: j.t, c: j.c, u: j.u, l: j.l.slice(0, 3), k: j.k, dm: j.dm || null, tr: j.tr, d: j.d });
+const jobById = (id) => state.byId?.get(id) || null;
 function setStage(id, s) {
-  state.tracker[id] = { s, t: Date.now() };
+  const prev = state.tracker[id] || {};
+  const j = jobById(id);
+  state.tracker[id] = { ...prev, s, t: Date.now(), ...(s === "applied" && !prev.a ? { a: Date.now() } : {}), ...(j ? { j: snap(j) } : {}) };
   store.set("tracker", state.tracker);
+}
+function setNote(id, n) {
+  state.tracker[id] = { ...(state.tracker[id] || { s: "saved" }), n: n.slice(0, 2000), t: Date.now() };
+  store.set("tracker", state.tracker);
+}
+// Save or unsave. Unsaving leaves a dated marker so another device's older copy can't bring it back.
+function toggleSave(id, on = !state.saved.has(id)) {
+  const j = jobById(id);
+  if (on) {
+    state.saved.add(id);
+    const prev = state.tracker[id];
+    state.tracker[id] = { ...(prev && prev.s !== "removed" ? prev : { s: "saved" }), t: Date.now(), ...(j ? { j: snap(j) } : {}) };
+  } else {
+    state.saved.delete(id);
+    state.tracker[id] = { s: "removed", t: Date.now() };
+  }
+  store.set("tracker", state.tracker);
+  store.set("saved", [...state.saved]);
+  updateSavedCount();
+  return on;
+}
+// Saved roles, from the live feed when they're still listed, from the saved copy when they're not.
+function savedJobs() {
+  const out = [];
+  for (const id of state.saved) {
+    const live = jobById(id);
+    const copy = state.tracker[id]?.j;
+    if (live) out.push(live);
+    else if (copy) out.push({ id, ...copy, l: copy.l || [], co: [], s: [], closed: true });
+  }
+  return out;
+}
+
+function toastAction(msg, label, fn) {
+  const t = $("#toast");
+  t.replaceChildren(el("span", {}, msg), el("button", { type: "button", class: "link", onclick: () => { t.classList.remove("show"); fn(); } }, label));
+  t.classList.add("show");
+  clearTimeout(toast.h);
+  toast.h = setTimeout(() => t.classList.remove("show"), 9000);
 }
 
 function toast(msg) {
@@ -127,15 +190,16 @@ function fitRing(f) {
 function jobCard(j, why, f, track) {
   const on = state.saved.has(j.id);
   const save = el("button", { class: `save${on ? " on" : ""}`, title: on ? "Saved" : "Save", "aria-label": on ? "Unsave" : "Save", "aria-pressed": String(on) }, on ? "★" : "☆");
-  save.addEventListener("click", () => {
+  save.addEventListener("click", (e) => {
+    e.stopPropagation();
     if (locked() && !state.saved.has(j.id)) return askSignup("save", { save: j.id });
-    if (state.saved.has(j.id)) state.saved.delete(j.id); else state.saved.add(j.id);
-    store.set("saved", [...state.saved]);
-    const now = state.saved.has(j.id);
+    const now = toggleSave(j.id);
     save.classList.toggle("on", now);
     save.textContent = now ? "★" : "☆";
+    save.title = now ? "Saved" : "Save";
     save.setAttribute("aria-pressed", String(now));
-    updateSavedCount();
+    save.setAttribute("aria-label", now ? "Unsave" : "Save");
+    toast(now ? "Saved. Track it under Applications." : "Removed from Applications");
   });
   const tags = el("div", { class: "tags" },
     el("span", { class: "tag track" }, TRACKS[j.tr]),
@@ -146,6 +210,8 @@ function jobCard(j, why, f, track) {
     today() - j.d <= 3 ? el("span", { class: "tag new" }, "New") : null,
     !f && state.parsed ? el("span", { class: "tag fitTag" }, `${fitJob(j, state.profile).fit}% fit`) : null,
     j.p ? el("span", { class: "tag pay" }, `$${Math.round(j.p)}/hr`) : null,
+    j.closed ? el("span", { class: "tag closed", title: "No longer in today's listings. It may have closed." }, "No longer listed") : null,
+    !track && on && stageOf(j.id) !== "saved" ? el("span", { class: `tag st s-${stageOf(j.id)}` }, STAGES.find((x) => x[0] === stageOf(j.id))[1]) : null,
   );
   const where = j.l.length ? j.l.slice(0, 2).join(" · ") + (j.l.length > 2 ? ` +${j.l.length - 2}` : "") : "Location not listed";
   const skills = f && (f.have.length || f.missing.length) ? el("div", { class: "skillrow" },
@@ -155,15 +221,102 @@ function jobCard(j, why, f, track) {
     f ? fitRing(f) : null,
     logo(j.c, j.dm),
     el("div", {},
-      el("h3", {}, el("a", { href: j.u, target: "_blank", rel: "noopener" }, j.t)),
-      el("div", { class: "meta" }, el("b", {}, j.c), el("span", {}, where), el("span", {}, ago(j.d))),
+      el("h3", {}, el("button", { type: "button", class: "title-btn", onclick: () => openJob(j) }, j.t)),
+      el("div", { class: "meta" }, el("b", {}, j.c), el("span", {}, where), j.d ? el("span", {}, ago(j.d)) : null),
       tags,
       why && why.length ? el("div", { class: "why" }, "✓ " + why.join(" · ")) : null,
       skills,
     ),
-    el("div", { class: "side" }, el("a", { class: "btn", href: j.u, target: "_blank", rel: "noopener" }, "Apply"), save,
+    el("div", { class: "side" }, el("a", { class: "btn", href: j.u, target: "_blank", rel: "noopener", onclick: (e) => { e.stopPropagation(); appliedNudge(j); } }, "Apply"), save,
       track ? stagePicker(j.id) : null, reportLink(`${j.c}: ${j.t}`, j.u)),
   );
+}
+
+// After someone opens an application, offer to mark it applied when they come back to the tab.
+function appliedNudge(j) {
+  if (stageOf(j.id) !== "saved" && state.saved.has(j.id)) return;
+  const back = () => {
+    if (document.visibilityState !== "visible") return;
+    document.removeEventListener("visibilitychange", back);
+    toastAction(`Did you apply to ${j.c}?`, "Yes, track it", () => {
+      if (locked()) return askSignup("save", { save: j.id });
+      if (!state.saved.has(j.id)) toggleSave(j.id, true);
+      setStage(j.id, "applied");
+      toast("Marked as applied. See it under Applications.");
+      if (location.hash.startsWith("#saved")) renderSaved();
+    });
+  };
+  setTimeout(() => document.addEventListener("visibilitychange", back), 500);
+}
+
+/* ---------- Role detail ---------- */
+function openJob(j, push = true) {
+  const dlg = $("#job-dlg");
+  const f = state.parsed && !j.closed ? fitJob(j, state.profile) : null;
+  const saved = state.saved.has(j.id);
+  const tr = state.tracker[j.id] || {};
+  const others = state.jobs.filter((x) => x.c === j.c && x.id !== j.id).sort((a, b) => b.d - a.d).slice(0, 5);
+  const similar = state.jobs.filter((x) => x.tr === j.tr && x.c !== j.c && x.k === j.k)
+    .map((x) => ({ x, f: state.parsed ? fitJob(x, state.profile).fit : 0 }))
+    .sort((a, b) => b.f - a.f || b.x.d - a.x.d).slice(0, 4).map((r) => r.x);
+  const mini = (x) => el("li", {}, el("button", { type: "button", class: "mini", onclick: () => openJob(x, false) },
+    logo(x.c, x.dm), el("span", {}, el("b", {}, x.t), el("span", { class: "muted small" }, `${x.c} · ${x.l[0] || "Location not listed"} · ${ago(x.d)}`))));
+  const stageRow = el("div", { class: "seg stages", role: "group", "aria-label": "Application status" }, STAGES.map(([v, label]) => el("button", {
+    type: "button", class: saved && stageOf(j.id) === v ? "on" : "", "aria-pressed": String(saved && stageOf(j.id) === v),
+    onclick: () => {
+      if (locked()) return askSignup("save", { save: j.id });
+      if (!state.saved.has(j.id)) toggleSave(j.id, true);
+      setStage(j.id, v);
+      if (v === "offer") toast("An offer! Congratulations 🎉");
+      openJob(j, false);
+      refreshBehind();
+    },
+  }, label)));
+  const note = el("textarea", { rows: 3, placeholder: "Notes: referral, recruiter name, interview dates…", "aria-label": "Notes" });
+  note.value = tr.n || "";
+  note.addEventListener("input", () => { clearTimeout(note.h); note.h = setTimeout(() => { if (state.saved.has(j.id)) setNote(j.id, note.value); }, 400); });
+  const saveBtn = el("button", { type: "button", class: `btn ghost${saved ? " on" : ""}`, onclick: () => {
+    if (locked() && !saved) return askSignup("save", { save: j.id });
+    toggleSave(j.id); openJob(j, false); refreshBehind();
+  } }, saved ? "★ Saved" : "☆ Save");
+  $("#job-body").replaceChildren(
+    el("div", { class: "jd-head" }, logo(j.c, j.dm), el("div", {},
+      el("p", { class: "muted small" }, j.c),
+      el("h2", { id: "job-title" }, j.t),
+      el("div", { class: "meta" }, el("span", {}, j.k === "internship" ? "Internship" : "New grad"), el("span", {}, j.l.length ? j.l.join(" · ") : "Location not listed"), j.d ? el("span", {}, `Posted ${ago(j.d)}`) : null))),
+    el("div", { class: "tags" },
+      TRACKS[j.tr] ? el("span", { class: "tag track" }, TRACKS[j.tr]) : null,
+      j.lv && j.lv !== "Undergrad" ? el("span", { class: "tag" }, j.lv) : null,
+      j.r ? el("span", { class: "tag" }, "Remote") : null,
+      j.v ? el("span", { class: "tag visa" }, "Sponsors visas") : null,
+      j.p ? el("span", { class: "tag pay" }, `$${Math.round(j.p)}/hr`) : null,
+      j.closed ? el("span", { class: "tag closed" }, "No longer listed") : null),
+    el("div", { class: "jd-actions" },
+      el("a", { class: "btn", href: j.u, target: "_blank", rel: "noopener", onclick: () => appliedNudge(j) }, "Apply on company site ↗"),
+      saveBtn,
+      el("button", { type: "button", class: "btn ghost", onclick: () => copy(`${location.origin}${location.pathname}#job/${encodeURIComponent(j.id)}`, "Link copied") }, "Copy link")),
+    f ? el("section", { class: "jd-sec" }, el("h3", {}, "How you fit"),
+      el("div", { class: "jd-fit" }, fitRing(f), el("div", {},
+        el("p", {}, f.fit >= 80 ? "Strong fit. Apply soon." : f.fit >= 60 ? "Good fit. Worth applying." : "A stretch for now. See what's missing below."),
+        el("div", { class: "skillrow" }, ...f.have.map((x) => el("span", { class: "have" }, `✓ ${SHORT[x] || x}`)), ...f.missing.map((x) => el("span", { class: "miss" }, `+ ${SHORT[x] || x}`)))))) :
+      !j.closed ? el("section", { class: "jd-sec muted small" }, "Add your resume on the Explore page to see how well you fit this role.") : null,
+    el("section", { class: "jd-sec" }, el("h3", {}, "Your application"), stageRow,
+      saved ? note : el("p", { class: "muted small" }, "Pick a status to add this role to your Applications board."),
+      tr.a ? el("p", { class: "muted small" }, `Applied ${new Date(tr.a).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`) : null),
+    others.length ? el("section", { class: "jd-sec" }, el("h3", {}, `More at ${j.c}`), el("ul", { class: "minis" }, others.map(mini))) : null,
+    similar.length ? el("section", { class: "jd-sec" }, el("h3", {}, "Similar roles"), el("ul", { class: "minis" }, similar.map(mini))) : null,
+    el("p", { class: "muted small jd-foot" }, "Ada lists roles from public trackers and employer career sites. Details can change, so check the company page before you apply. ", reportLink(`${j.c}: ${j.t}`, j.u)),
+  );
+  if (!dlg.open) dlg.showModal();
+  $("#job-body").scrollTop = 0;
+}
+// Redraw the page under the role panel so saved stars and statuses match.
+function refreshBehind() {
+  updateSavedCount();
+  const v = (location.hash.slice(1) || "explore").split("/")[0];
+  if (v === "saved") renderSaved();
+  else if (v === "explore" || v === "job") renderExplore();
+  else if (v === "match") renderMatch();
 }
 
 /* ---------- Explore ---------- */
@@ -182,27 +335,77 @@ function readFilters() {
   };
 }
 
+const FILTER_LABELS = { kind: { internship: "Internships", "new-grad": "New grad" }, days: { 1: "Last 24 hours", 7: "Posted this week", 30: "Last 30 days" } };
+function sortJobs(list, how) {
+  if (how === "fit" && state.parsed) {
+    const fit = new Map(list.map((j) => [j.id, fitJob(j, state.profile).fit]));
+    return list.sort((a, b) => fit.get(b.id) - fit.get(a.id) || b.d - a.d);
+  }
+  if (how === "pay") return list.sort((a, b) => (b.p || 0) - (a.p || 0) || b.d - a.d);
+  if (how === "company") return list.sort((a, b) => a.c.localeCompare(b.c) || b.d - a.d);
+  return list.sort((a, b) => b.d - a.d);
+}
+
+function syncChips(q) {
+  for (const c of document.querySelectorAll(".f-chips .chip[data-chip]")) {
+    const [k, v] = c.dataset.chip.split(":");
+    const on = v === undefined ? !!q[k] : String(q[k]) === v;
+    c.classList.toggle("on", on); c.setAttribute("aria-pressed", String(on));
+  }
+  const adv = ["field", "track", "skill", "level", "country"].filter((k) => q[k] && q[k] !== "any").length;
+  $("#f-n").textContent = adv || "";
+  // Active filters as removable pills, with one tap to clear them all.
+  const pills = [];
+  const add = (label, clear) => pills.push(el("button", { type: "button", class: "fpill", "aria-label": `Remove filter ${label}`, onclick: () => { clear(); rerunExplore(); } }, label, " ✕"));
+  if (q.text) add(`“${q.text}”`, () => { $("#q").value = ""; });
+  if (q.kind !== "any") add(FILTER_LABELS.kind[q.kind], () => { $("#f-kind").value = "any"; });
+  if (q.field !== "any") add(FIELDS[q.field], () => { $("#f-field").value = "any"; fillRoleFilter(); });
+  if (q.track !== "any") add(TRACKS[q.track], () => { $("#f-track").value = "any"; });
+  if (q.skill !== "any") add(SKILL_NAMES[q.skill]?.split(/[:,]| and /)[0] || q.skill, () => { $("#f-skill").value = "any"; });
+  if (q.level !== "any") add(q.level, () => { $("#f-level").value = "any"; });
+  if (q.country !== "any") add(q.country, () => { $("#f-country").value = "any"; });
+  if (q.days) add(FILTER_LABELS.days[q.days], () => { $("#f-days").value = "0"; });
+  if (q.remote) add("Remote", () => { $("#f-remote").checked = false; });
+  if (q.visa) add("Sponsors visas", () => { $("#f-visa").checked = false; });
+  if (pills.length > 1) pills.push(el("button", { type: "button", class: "link small", onclick: clearFilters }, "Clear all"));
+  $("#active-f").replaceChildren(...pills);
+}
+
+function clearFilters() {
+  $("#q").value = "";
+  for (const id of ["#f-kind", "#f-field", "#f-skill", "#f-level", "#f-country"]) $(id).value = "any";
+  fillRoleFilter(); $("#f-track").value = "any";
+  $("#f-days").value = "0"; $("#f-remote").checked = false; $("#f-visa").checked = false;
+  rerunExplore();
+}
+
+function rerunExplore() { state.shown = 40; renderExplore(); }
+
 function renderExplore() {
   const q = readFilters();
-  const list = filterJobs(state.jobs, q);
-  $("#count").textContent = `${fmt(list.length)} open role${list.length === 1 ? "" : "s"}`;
+  const how = $("#f-sort").value;
+  const list = sortJobs(filterJobs(state.jobs, q), how);
+  syncChips(q);
+  $("#count").textContent = `${fmt(list.length)} open role${list.length === 1 ? "" : "s"}${how === "fit" && !state.parsed ? " · add your resume to sort by fit" : ""}`;
   const ul = $("#results");
   ul.replaceChildren(...list.slice(0, state.shown).map((j) => jobCard(j)));
-  if (!list.length) ul.append(el("li", { class: "empty" }, "No roles match. Try removing a filter."));
+  if (!list.length) ul.append(el("li", { class: "empty" }, "No roles match all of these filters. ", el("button", { type: "button", class: "link", onclick: clearFilters }, "Clear filters")));
   $("#more").hidden = list.length <= state.shown;
+  $("#more").textContent = `Show more (${fmt(Math.max(0, list.length - state.shown))} left)`;
 }
 
 function searchParams() {
   const q = readFilters();
   const p = new URLSearchParams();
   for (const [k, v] of Object.entries(q)) if (v && v !== "any" && v !== 0) p.set(k, v === true ? "1" : v);
+  if ($("#f-sort").value !== "new") p.set("sort", $("#f-sort").value);
   return p;
 }
 
 function applySearchParams(p) {
   const set = (id, k) => { if (p.has(k)) $(id).value = p.get(k); };
   set("#q", "text"); set("#f-kind", "kind"); set("#f-field", "field"); fillRoleFilter(); set("#f-track", "track"); set("#f-skill", "skill");
-  set("#f-level", "level"); set("#f-country", "country"); set("#f-days", "days");
+  set("#f-level", "level"); set("#f-country", "country"); set("#f-days", "days"); set("#f-sort", "sort");
   $("#f-remote").checked = p.get("remote") === "1";
   $("#f-visa").checked = p.get("visa") === "1";
 }
@@ -663,50 +866,104 @@ function stagePicker(id) {
     setStage(id, sel.value);
     sel.className = `stage s-${sel.value}`;
     if (sel.value === "offer") toast("An offer! Congratulations 🎉");
-    renderPipeline();
+    renderSaved();
   });
   return sel;
 }
 
-function renderPipeline() {
-  const list = state.jobs.filter((j) => state.saved.has(j.id));
+function renderPipeline(list) {
   const n = Object.fromEntries(STAGES.map(([v]) => [v, 0]));
   for (const j of list) n[stageOf(j.id)]++;
   $("#pipeline").hidden = !list.length;
   $("#pipeline").replaceChildren(...STAGES.map(([v, label]) => el("div", { class: `stage-box s-${v}` }, el("b", {}, String(n[v])), el("span", {}, label))));
 }
 
+function boardCard(j) {
+  const tr = state.tracker[j.id] || {};
+  const card = el("li", { class: `bcard${j.closed ? " is-closed" : ""}`, draggable: "true", "data-id": j.id },
+    el("div", { class: "bc-top" }, logo(j.c, j.dm), el("div", {},
+      el("button", { type: "button", class: "title-btn", onclick: () => openJob(j) }, j.t),
+      el("div", { class: "muted small" }, j.c))),
+    tr.n ? el("p", { class: "bc-note" }, tr.n.length > 90 ? tr.n.slice(0, 90) + "…" : tr.n) : null,
+    el("div", { class: "bc-foot" },
+      j.closed ? el("span", { class: "tag closed" }, "No longer listed") : el("span", { class: "muted small" }, tr.a ? `Applied ${new Date(tr.a).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : `Posted ${ago(j.d)}`),
+      stagePicker(j.id)),
+  );
+  card.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/plain", j.id); card.classList.add("dragging"); });
+  card.addEventListener("dragend", () => card.classList.remove("dragging"));
+  return card;
+}
+
 function renderSaved() {
-  const list = state.jobs.filter((j) => state.saved.has(j.id));
+  const list = savedJobs();
   const rank = Object.fromEntries(STAGES.map(([v], i) => [v, i]));
-  list.sort((a, b) => rank[stageOf(b.id)] - rank[stageOf(a.id)] || b.d - a.d);
-  $("#saved-sum").textContent = list.length ? `${list.length} saved role${list.length === 1 ? "" : "s"}` : "";
-  renderPipeline();
-  const ul = $("#saved");
-  ul.replaceChildren(...list.map((j) => jobCard(j, null, null, true)));
-  if (!list.length && locked()) {
-    ul.append(el("li", { class: "empty big" },
-      el("h2", {}, "Track every application in one place"),
-      el("p", {}, "Save roles with ☆, then move each one from saved to applied, interviewing and offer. Free with an account."),
-      el("button", { class: "btn", onclick: () => askSignup("save") }, "Create free account")));
-  } else if (!list.length) ul.append(el("li", { class: "empty" }, "Tap ☆ on any role to save it here, then track it from applied to offer."));
+  list.sort((a, b) => rank[stageOf(b.id)] - rank[stageOf(a.id)] || (state.tracker[b.id]?.t || 0) - (state.tracker[a.id]?.t || 0));
+  const active = list.filter((j) => ["applied", "interview"].includes(stageOf(j.id))).length;
+  $("#saved-sum").textContent = list.length ? `${list.length} role${list.length === 1 ? "" : "s"} saved · ${active} in progress. Drag a card or pick a status to move it.` : "Save roles with ☆ and track each one from saved to offer.";
+  renderPipeline(list);
+  const mode = store.get("boardMode", "board");
+  for (const b of document.querySelectorAll("#board-mode button")) b.classList.toggle("on", b.dataset.mode === mode);
+  const ul = $("#saved"), board = $("#board");
+  $("#export").hidden = !list.length;
+  if (!list.length) {
+    board.replaceChildren(); board.hidden = true;
+    ul.replaceChildren(locked()
+      ? el("li", { class: "empty big" },
+        el("h2", {}, "Track every application in one place"),
+        el("p", {}, "Save roles with ☆, then move each one from saved to applied, interviewing and offer, with notes. Free with an account."),
+        el("button", { class: "btn", onclick: () => askSignup("save") }, "Create free account"))
+      : el("li", { class: "empty big" },
+        el("h2", {}, "No applications yet"),
+        el("p", {}, "Tap ☆ on any role to save it here. When you apply, move it along: applied, interviewing, offer."),
+        el("a", { class: "btn", href: "#explore" }, "Find roles")));
+    return;
+  }
+  board.hidden = mode !== "board"; ul.hidden = mode === "board";
+  if (mode === "list") { ul.replaceChildren(...list.map((j) => jobCard(j, null, null, true))); return; }
+  ul.replaceChildren();
+  board.replaceChildren(...STAGES.map(([v, label]) => {
+    const items = list.filter((j) => stageOf(j.id) === v);
+    const col = el("section", { class: `col s-${v}`, "aria-label": label },
+      el("h3", {}, label, el("span", { class: "pill" }, String(items.length))),
+      el("ul", {}, items.length ? items.map(boardCard) : el("li", { class: "col-empty muted small" }, v === "saved" ? "Saved roles land here" : "Drag a card here")));
+    col.addEventListener("dragover", (e) => { e.preventDefault(); col.classList.add("over"); });
+    col.addEventListener("dragleave", () => col.classList.remove("over"));
+    col.addEventListener("drop", (e) => {
+      e.preventDefault(); col.classList.remove("over");
+      const id = e.dataTransfer.getData("text/plain");
+      if (id && stageOf(id) !== v) { setStage(id, v); if (v === "offer") toast("An offer! Congratulations 🎉"); renderSaved(); }
+    });
+    return col;
+  }));
 }
 
 function exportCsv() {
-  const list = state.jobs.filter((j) => state.saved.has(j.id));
-  const q = (s) => `"${String(s).replace(/"/g, '""')}"`;
-  const rows = [["Company", "Title", "Type", "Location", "Posted", "Link"], ...list.map((j) => [j.c, j.t, j.k, j.l.join("; "), new Date(j.d * 864e5).toISOString().slice(0, 10), j.u])];
+  const list = savedJobs();
+  const q = (s) => `"${String(s ?? "").replace(/"/g, '""')}"`;
+  const date = (ms) => (ms ? new Date(ms).toISOString().slice(0, 10) : "");
+  const rows = [["Company", "Title", "Type", "Location", "Status", "Applied", "Notes", "Link"],
+    ...list.map((j) => [j.c, j.t, j.k, j.l.join("; "), STAGES.find((x) => x[0] === stageOf(j.id))[1], date(state.tracker[j.id]?.a), state.tracker[j.id]?.n || "", j.u])];
   const blob = new Blob([rows.map((r) => r.map(q).join(",")).join("\n")], { type: "text/csv" });
-  const a = el("a", { href: URL.createObjectURL(blob), download: "ada-saved-roles.csv" });
+  const a = el("a", { href: URL.createObjectURL(blob), download: "ada-applications.csv" });
   document.body.append(a); a.click(); a.remove();
 }
 
-function updateSavedCount() { $("#saved-count").textContent = state.saved.size || ""; }
+function updateSavedCount() {
+  const n = state.saved.size || "";
+  $("#saved-count").textContent = n; $("#saved-count-m").textContent = n;
+}
 
 /* ---------- Routing ---------- */
 const VIEWS = ["explore", "match", "foryou", "roadmap", "programs", "trends", "saved"];
 function route() {
   const [view, arg] = (location.hash.slice(1) || "explore").split("/");
+  if (view === "job" && arg) {
+    const j = jobById(decodeURIComponent(arg));
+    if ($("#view-explore").hidden) { for (const n of VIEWS) $(`#view-${n}`).hidden = n !== "explore"; renderExplore(); }
+    if (j) openJob(j); else toast("That role is no longer listed.");
+    return;
+  }
+  if ($("#job-dlg").open) $("#job-dlg").close();
   const v = VIEWS.includes(view) ? view : "explore";
   state.sharedView = null;
   if (v === "roadmap" && arg) {
@@ -714,7 +971,8 @@ function route() {
     if (p && TRACKS[p.t]) { state.sharedView = { ...p, tracks: [p.t] }; $("#rm-track").value = p.t; }
   }
   for (const n of VIEWS) $(`#view-${n}`).hidden = n !== v;
-  document.querySelectorAll(".tabs a").forEach((a) => a.classList.toggle("on", a.dataset.view === v));
+  $("#more-btn")?.classList.toggle("on", ["foryou", "roadmap", "trends"].includes(v));
+  document.querySelectorAll(".tabs a, .bottom-nav a").forEach((a) => { a.classList.toggle("on", a.dataset.view === v); if (a.dataset.view === v) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
   document.body.classList.toggle("compact", v !== "explore");
   scrollTo(0, 0);
   ({ explore: renderExplore, match: renderMatch, foryou: renderForYou, roadmap: renderRoadmap, programs: renderPrograms, trends: renderTrends, saved: renderSaved })[v]();
@@ -786,28 +1044,54 @@ function initAccount() {
   const btn = $("#account"), login = $("#login"), dlg = $("#account-dlg");
   if (!sync.enabled) return;
   btn.hidden = false; login.hidden = false;
+  // A sign-in or reset link that failed (expired, already used) comes back with an error in the address.
+  // Shown once we know whether this browser is already signed in.
+  const bad = sync.linkError();
+  if (bad) history.replaceState(null, "", location.pathname + "#explore");
+  const linkProblem = (user) => {
+    const msg = /expired|invalid/i.test(bad.code + bad.text) ? "That link has expired or was already used." : `That link didn't work: ${bad.text || bad.code}.`;
+    if (user) { toast(`${msg} You're already signed in.`); return; }
+    askSignup("login");
+    $("#acct-msg").textContent = `${msg} Log in below, or ask for a new link.`;
+  };
+  const fillAccount = (user) => {
+    $("#acct-who").textContent = user?.email || "";
+    $("#acct-avatar").textContent = (user?.email || "?")[0].toUpperCase();
+    $("#acct-n-saved").textContent = fmt(state.saved.size);
+    $("#acct-n-apps").textContent = fmt(Object.values(state.tracker).filter((t) => ["applied", "interview"].includes(t.s)).length);
+    $("#acct-alerts").textContent = state.profile.alerts ? "On, Mondays" : "Off";
+  };
   const show = (user, event) => {
-    btn.textContent = user ? "✓ Signed in" : "Sign up free";
-    btn.classList.toggle("ghost", !!user);
-    btn.title = user ? `Signed in as ${user.email || "you"}` : "Create your free account";
+    btn.textContent = user ? (user.email || "Account")[0].toUpperCase() : "Sign up free";
+    btn.classList.toggle("me", !!user);
+    btn.title = user ? `Your account (${user.email || "signed in"})` : "Create your free account";
+    btn.setAttribute("aria-label", user ? "Your account" : "Sign up free");
     login.hidden = !!user || sync.authStatus() === "off";
     btn.hidden = sync.authStatus() === "off";
-    $("#acct-out").hidden = !!user; $("#acct-sent").hidden = true; $("#acct-in").hidden = !user;
-    $("#acct-who").textContent = user?.email || "";
+    fillAccount(user);
     $("#profile-note").textContent = user ? "Synced to your account, so it follows you to any device." : "Stays in your browser. Nothing is sent anywhere.";
     $("#p-alerts").checked = !!(user && state.profile.alerts);
     $("#alerts-note").textContent = user ? `Sent to ${user.email}. One email a week, unsubscribe in one click.` : "Free with an account.";
+    if (bad && event && event !== "OFF" && !acct.linkShown) { acct.linkShown = true; setTimeout(() => linkProblem(user), 0); }
+    if (event === "PASSWORD_RECOVERY") {
+      acctPanel("reset");
+      if (!dlg.open) dlg.showModal();
+      setTimeout(() => $("#reset-pw").focus(), 50);
+      return;
+    }
     if (user) finishPending(event);
+    else if (dlg.open && !$("#acct-in").hidden) dlg.close();
     if (state.jobs.length && ["match", "saved"].includes(location.hash.slice(1))) route();
   };
   // Finish what the visitor was doing when we asked them to sign up (the link may open in a new tab).
   function finishPending(event) {
     const p = store.get("pending", null);
     store.set("pending", null);
-    if (dlg.open) dlg.close();
-    if (p?.save && !state.saved.has(p.save)) { state.saved.add(p.save); store.set("saved", [...state.saved]); updateSavedCount(); }
+    if (dlg.open && $("#acct-in").hidden && $("#acct-reset").hidden) dlg.close();
+    if (p?.save && !state.saved.has(p.save)) { toggleSave(p.save, true); }
     if (p?.view && location.hash.slice(1) !== p.view) location.hash = p.view;
-    if (event === "SIGNED_IN" && (p || location.hash.includes("access_token"))) toast(p?.save ? "You're in. Role saved." : "You're in. Everything is unlocked.");
+    if (event === "SIGNED_IN" && (p || acct.justSent)) toast(p?.save ? "You're in. Role saved." : "You're in. Everything is unlocked.");
+    acct.justSent = false;
   }
   $("#alerts-box").hidden = false;
   $("#p-alerts").addEventListener("change", (e) => {
@@ -825,39 +1109,164 @@ function initAccount() {
       .catch(() => toast("Could not unsubscribe. Try again, or turn emails off in For you."));
     history.replaceState(null, "", location.pathname + location.hash);
   }
-  btn.addEventListener("click", () => (sync.currentUser() ? dlg.showModal() : askSignup("signup")));
+  btn.addEventListener("click", () => {
+    if (sync.currentUser()) { fillAccount(sync.currentUser()); acctPanel("in"); dlg.showModal(); } else askSignup("signup");
+  });
   login.addEventListener("click", () => askSignup("login"));
-  let last = 0;
-  const send = async (email) => {
-    if (!/^\S+@\S+\.\S+$/.test(email)) { $("#acct-msg").textContent = "Enter a valid email first."; return; }
-    if (Date.now() - last < 30000) { $("#acct-msg").textContent = "Give it 30 seconds before sending another link."; return; }
-    const go = $("#acct-email-go");
-    go.disabled = true; go.textContent = "Sending…";
-    try {
-      await sync.signInWithEmail(email);
-      last = Date.now();
-      $("#acct-sent-to").textContent = email;
-      $("#acct-out").hidden = true; $("#acct-sent").hidden = false;
-    } catch (e) {
-      $("#acct-msg").textContent = /rate|limit|429/i.test(e.message)
-        ? "Lots of sign-ups right now. Wait a few minutes and try again."
-        : `Could not send the link: ${e.message}`;
-    } finally { go.disabled = false; go.textContent = "Continue with email"; }
+  for (const b of document.querySelectorAll(".acct-tabs button")) b.addEventListener("click", () => setMode(b.dataset.mode));
+  $("#acct-magic").addEventListener("click", () => { acct.magic = !acct.magic; setMode(acct.mode); });
+  $("#acct-pw-show").addEventListener("click", (e) => {
+    const pw = $("#acct-pw"), hide = pw.type === "text";
+    pw.type = hide ? "password" : "text";
+    e.target.textContent = hide ? "Show" : "Hide";
+    e.target.setAttribute("aria-label", hide ? "Show password" : "Hide password");
+  });
+
+  // "Check your inbox", with a resend that waits 60 seconds between tries.
+  let resendAt = 0, resendTimer;
+  const sent = (kind, email) => {
+    const t = { confirm: ["Confirm your email", "We sent a confirmation link to"], link: ["Check your inbox", "We sent a sign-in link to"], reset: ["Reset your password", "We sent a password reset link to"] }[kind];
+    acct.sent = { kind, email };
+    $("#sent-title").textContent = t[0];
+    $("#sent-text").replaceChildren(`${t[1]} `, el("b", { id: "acct-sent-to" }, email), ". Open it on this device and you're in.");
+    $("#sent-msg").textContent = "";
+    acctPanel("sent");
+    resendAt = Date.now() + 60000;
+    tick();
   };
-  $("#acct-form").addEventListener("submit", () => send($("#acct-email").value.trim()));
-  $("#acct-resend").addEventListener("click", () => { $("#acct-out").hidden = false; $("#acct-sent").hidden = true; send($("#acct-sent-to").textContent); });
-  $("#acct-change").addEventListener("click", () => { $("#acct-out").hidden = false; $("#acct-sent").hidden = true; $("#acct-email").select(); });
+  const tick = () => {
+    clearTimeout(resendTimer);
+    const left = Math.ceil((resendAt - Date.now()) / 1000);
+    const r = $("#acct-resend");
+    r.disabled = left > 0;
+    r.textContent = left > 0 ? `Send it again in ${left}s` : "Send it again";
+    if (left > 0) resendTimer = setTimeout(tick, 1000);
+  };
+  const busy = (button, on, label) => { button.disabled = on; if (label) button.textContent = label; };
+  const fail = (box, e, email) => {
+    const m = sync.authMessage(e);
+    box.replaceChildren(m.text);
+    if (m.code === "exists") box.append(" ", el("button", { type: "button", class: "link", onclick: () => setMode("login") }, "Log in"));
+    if (m.code === "bad_login") box.append(" ", el("button", { type: "button", class: "link", onclick: () => forgot() }, "Reset password"));
+    if (m.code === "unconfirmed") box.append(" ", el("button", { type: "button", class: "link", onclick: () => run(() => sync.resendConfirmation(email), "confirm", email) }, "Resend confirmation"));
+  };
+  async function run(task, kind, email) {
+    const go = $("#acct-go"), label = go.textContent;
+    busy(go, true, "One moment…");
+    $("#acct-msg").textContent = "";
+    try {
+      const r = await task();
+      acct.justSent = true;
+      if (kind === "signup") { if (r === "confirm") sent("confirm", email); }
+      else if (kind) sent(kind, email);
+    } catch (e) { fail($("#acct-msg"), e, email); }
+    finally { busy(go, false, label); }
+  }
+  const valid = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+  function forgot() {
+    const email = $("#acct-email").value.trim();
+    if (!valid(email)) { $("#acct-msg").textContent = "Enter your email above, then tap Forgot password."; $("#acct-email").focus(); return; }
+    run(() => sync.sendPasswordReset(email), "reset", email);
+  }
+  $("#acct-forgot").addEventListener("click", forgot);
+  $("#acct-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const email = $("#acct-email").value.trim(), pw = $("#acct-pw").value;
+    if (!valid(email)) { $("#acct-msg").textContent = "Enter a valid email address."; $("#acct-email").focus(); return; }
+    if (acct.magic) return run(() => sync.signInWithEmail(email), "link", email);
+    if (acct.mode === "signup" && pw.length < 8) { $("#acct-msg").textContent = "Use a password of at least 8 characters."; $("#acct-pw").focus(); return; }
+    if (!pw) { $("#acct-msg").textContent = "Enter your password."; $("#acct-pw").focus(); return; }
+    if (acct.mode === "signup") run(() => sync.signUp(email, pw), "signup", email);
+    else run(() => sync.signInWithPassword(email, pw), null, email);
+  });
+  $("#acct-resend").addEventListener("click", async () => {
+    const { kind, email } = acct.sent || {};
+    if (!email || Date.now() < resendAt) return;
+    const task = { confirm: () => sync.resendConfirmation(email), link: () => sync.signInWithEmail(email), reset: () => sync.sendPasswordReset(email) }[kind];
+    try { await task(); $("#sent-msg").textContent = "Sent again."; resendAt = Date.now() + 60000; tick(); }
+    catch (e) { $("#sent-msg").textContent = sync.authMessage(e).text; }
+  });
+  $("#acct-change").addEventListener("click", () => { acctPanel("out"); $("#acct-email").select(); });
+  $("#reset-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const pw = $("#reset-pw").value, go = $("#reset-go");
+    if (pw.length < 8) { $("#reset-msg").textContent = "Use a password of at least 8 characters."; return; }
+    busy(go, true);
+    try { await sync.updatePassword(pw); dlg.close(); toast("Password saved. You're signed in."); finishPending("SIGNED_IN"); }
+    catch (err) { $("#reset-msg").textContent = sync.authMessage(err).text; }
+    finally { busy(go, false); }
+  });
+  $("#pw-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const pw = $("#pw-new").value;
+    if (pw.length < 8) { $("#pw-msg").textContent = "Use a password of at least 8 characters."; return; }
+    try { await sync.updatePassword(pw); $("#pw-new").value = ""; $("#pw-msg").textContent = "Password updated."; }
+    catch (err) { $("#pw-msg").textContent = sync.authMessage(err).text; }
+  });
   for (const [id, provider, on] of [["#acct-github", "github", sync.github], ["#acct-google", "google", sync.google]]) {
     $(id).hidden = !on;
-    $(id).addEventListener("click", () => sync.signInWith(provider).catch((e) => { $("#acct-msg").textContent = e.message; }));
+    $(id).addEventListener("click", () => sync.signInWith(provider).catch((e) => fail($("#acct-msg"), e)));
   }
   $("#acct-signout").addEventListener("click", async () => { await sync.signOut(); dlg.close(); toast("Signed out. Your data stays on this device."); });
   $("#acct-delete").addEventListener("click", async () => {
-    if (!confirm("Delete your synced data from the cloud? This device keeps its copy.")) return;
-    await sync.deleteMyData(); dlg.close(); toast("Account data deleted");
+    if (!confirm("Delete your Ada account? This removes your login and everything synced to it. This device keeps its own copy.")) return;
+    try {
+      const full = await sync.deleteAccount();
+      dlg.close();
+      toast(full ? "Your account is deleted." : "Your synced data is deleted.");
+    } catch (e) { toast(sync.authMessage(e).text); }
   });
   show(null);
   sync.initSync({ read: syncedState, write: applySynced, onChange: show }).catch((e) => console.warn("Ada sync:", e.message));
+}
+
+/* ---------- First visit: three taps to a useful feed ---------- */
+function initOnboarding() {
+  const dlg = $("#onboard");
+  const pick = { kind: null, field: null, where: null };
+  let step = 1;
+  $("#ob-fields").replaceChildren(...Object.entries(FIELDS).map(([f, name]) => el("button", { type: "button", "data-v": f }, el("b", {}, name))));
+  const show = () => {
+    for (const p of dlg.querySelectorAll(".ob-pane")) p.hidden = +p.dataset.step !== step;
+    $("#ob-step").textContent = `Step ${step} of 3`;
+    $("#ob-back").hidden = step === 1;
+    $("#ob-next").textContent = step === 3 ? "Show my roles" : "Next";
+    $("#ob-next").disabled = !pick[["kind", "field", "where"][step - 1]];
+  };
+  for (const box of dlg.querySelectorAll(".ob-opts")) box.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-v]");
+    if (!b) return;
+    pick[box.dataset.key] = b.dataset.v;
+    for (const x of box.querySelectorAll("button")) { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", String(x === b)); }
+    show();
+  });
+  $("#ob-back").addEventListener("click", () => { step = Math.max(1, step - 1); show(); });
+  $("#ob-next").addEventListener("click", () => {
+    if (step < 3) { step++; show(); return; }
+    const p = state.profile;
+    p.kind = pick.kind;
+    const ts = tracksIn(pick.field);
+    p.tracks = ts.slice(0, 2);
+    p.tracksFromUser = true;
+    p.countries = pick.where === "any" ? [] : [pick.where];
+    p.remoteOk = true;
+    if ($("#ob-visa").checked) p.visa = true;
+    store.set("profile", p);
+    store.set("onboarded", true); store.set("toured", true);
+    $("#tour").hidden = true;
+    fillProfile();
+    // Explore opens on the same choices, so the first list is already theirs.
+    $("#f-kind").value = pick.kind; $("#f-field").value = pick.field; fillRoleFilter();
+    $("#f-country").value = pick.where === "any" ? "any" : pick.where;
+    $("#f-visa").checked = $("#ob-visa").checked;
+    dlg.close();
+    if (location.hash === "#explore" || !location.hash) { rerunExplore(); route(); } else location.hash = "explore";
+    toast("Your feed is set. Save roles with ☆ to track them.");
+  });
+  dlg.addEventListener("close", () => store.set("onboarded", true));
+  show();
+  const fresh = !store.get("onboarded", false) && !store.get("toured", false) && !store.get("resume", "") && !location.search && (!location.hash || location.hash === "#explore");
+  if (fresh) setTimeout(() => { if (!document.querySelector("dialog[open]")) dlg.showModal(); }, 900);
 }
 
 async function boot() {
@@ -888,6 +1297,7 @@ async function boot() {
     return;
   }
   state.jobs = unpackJobs(opp);
+  state.byId = new Map(state.jobs.map((j) => [j.id, j]));
   for (const s of state.graph.skills) SKILL_NAMES[s.id] = s.name;
   useGraph(state.graph);
   useJobs(state.jobs);
@@ -915,6 +1325,32 @@ async function boot() {
     timer = setTimeout(() => { state.shown = 40; renderExplore(); }, e?.target?.id === "q" ? 120 : 0);
   };
   $("#filters").addEventListener("input", rerun);
+  $("#f-sort").addEventListener("change", () => { if ($("#f-sort").value === "fit" && !state.parsed) toast("Add your resume at the top of Explore to sort by fit."); });
+  for (const c of document.querySelectorAll(".f-chips .chip[data-chip]")) c.addEventListener("click", () => {
+    const [k, v] = c.dataset.chip.split(":");
+    const on = c.getAttribute("aria-pressed") !== "true";
+    if (k === "kind") $("#f-kind").value = on ? v : "any";
+    if (k === "days") $("#f-days").value = on ? v : "0";
+    if (k === "remote") $("#f-remote").checked = on;
+    if (k === "visa") $("#f-visa").checked = on;
+    rerunExplore();
+  });
+  $("#f-more").addEventListener("click", () => {
+    const open = !$("#filters").classList.contains("adv-open");
+    $("#filters").classList.toggle("adv-open", open);
+    $("#f-more").setAttribute("aria-expanded", String(open));
+  });
+  for (const b of document.querySelectorAll("#board-mode button")) b.addEventListener("click", () => { store.set("boardMode", b.dataset.mode); renderSaved(); });
+  $("#job-dlg").addEventListener("close", () => {
+    if (location.hash.startsWith("#job/")) history.replaceState(null, "", location.pathname + location.search + "#explore");
+    refreshBehind();
+  });
+  $("#job-dlg").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+  initOnboarding();
+  const more = $("#more-btn"), sheet = $("#more-sheet");
+  more.addEventListener("click", (e) => { e.stopPropagation(); sheet.hidden = !sheet.hidden; more.setAttribute("aria-expanded", String(!sheet.hidden)); });
+  addEventListener("click", (e) => { if (!sheet.hidden && !sheet.contains(e.target)) { sheet.hidden = true; more.setAttribute("aria-expanded", "false"); } });
+  addEventListener("hashchange", () => { sheet.hidden = true; more.setAttribute("aria-expanded", "false"); });
   $("#more").addEventListener("click", () => { state.shown += 60; renderExplore(); });
   $("#share-search").addEventListener("click", () => copy(`${location.origin}${location.pathname}?${searchParams()}#explore`, "Search link copied"));
   $("#profile").addEventListener("input", (e) => {
@@ -941,6 +1377,7 @@ async function boot() {
   if (!store.get("toured", false)) {
     $("#tour").hidden = false;
     $("#tour-close").addEventListener("click", () => { $("#tour").hidden = true; store.set("toured", true); });
+    $("#tour-setup").addEventListener("click", () => $("#onboard").showModal());
   }
   updateSavedCount();
   addEventListener("hashchange", route);

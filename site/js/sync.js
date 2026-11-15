@@ -15,7 +15,7 @@ export const google = Boolean(GOOGLE_LOGIN);
 export const gate = enabled && Boolean(EMAIL_READY || GITHUB_LOGIN || GOOGLE_LOGIN);
 
 // Combine two copies of a visitor's state without losing work: saved roles and finished
-// roadmap steps are unions; each tracked application keeps its latest status; profile, resume and
+// roadmap steps are unions (minus roles unsaved later); each tracked application keeps its latest status; profile, resume and
 // streak come from whichever copy changed last.
 export function mergeState(local, remote) {
   if (!remote) return local;
@@ -26,7 +26,8 @@ export function mergeState(local, remote) {
   const tracker = { ...(remote.tracker || {}) };
   for (const [id, t] of Object.entries(local.tracker || {})) if (!tracker[id] || (t.t || 0) >= (tracker[id].t || 0)) tracker[id] = t;
   return {
-    saved: [...new Set([...(local.saved || []), ...(remote.saved || [])])],
+    // An unsave on one device leaves a dated "removed" marker, so the other copy can't bring the role back.
+    saved: [...new Set([...(local.saved || []), ...(remote.saved || [])])].filter((id) => tracker[id]?.s !== "removed"),
     profile: newer.profile ?? local.profile ?? remote.profile,
     resume: newer.resume ?? local.resume ?? remote.resume,
     progress,
@@ -85,15 +86,76 @@ export async function initSync({ read, write, onChange }) {
 
 export function pushSoon() { initSync.push?.(false); }
 
+const here = () => location.origin + location.pathname;
+
+// Turn Supabase's error text into a sentence a student can act on. `code` tells the UI what to offer next.
+export function authMessage(e) {
+  const m = String(e?.message || e || "");
+  const code = e?.code || "";
+  if (/invalid login credentials/i.test(m) || code === "invalid_credentials") return { code: "bad_login", text: "That email and password don't match. Try again, or reset your password." };
+  if (/email not confirmed/i.test(m) || code === "email_not_confirmed") return { code: "unconfirmed", text: "Confirm your email first. We can send the confirmation link again." };
+  if (/already registered|already been registered|user_already_exists/i.test(m + code)) return { code: "exists", text: "That email already has an account. Log in instead." };
+  if (/password/i.test(m) && /(at least|characters|weak|short)/i.test(m)) return { code: "weak", text: "Use a password of at least 8 characters." };
+  if (/same.*password|different from the old/i.test(m)) return { code: "same", text: "Pick a password you haven't used here before." };
+  if (/rate|limit|429|too many|security purposes/i.test(m)) return { code: "rate", text: "Too many tries in a short time. Wait a minute and try again." };
+  if (/not authorized|sending.*email|error sending|smtp/i.test(m)) return { code: "email", text: "We couldn't send the email just now. Please try again in a few minutes." };
+  if (/expired|invalid.*(link|token)|otp/i.test(m)) return { code: "expired", text: "That link has expired or was already used. Ask for a new one." };
+  if (/fetch|network|load failed/i.test(m)) return { code: "network", text: "Can't reach the sign-in service. Check your connection and try again." };
+  return { code: "other", text: m || "Something went wrong. Please try again." };
+}
+
+// Errors Supabase puts in the address after a sign-in or reset link (for example an expired link).
+// Read once at start-up, before the router or the SDK touch the address.
+export function linkError(href = location.href) {
+  const frag = new URLSearchParams((href.split("#")[1] || "").replace(/^\//, ""));
+  const query = new URL(href).searchParams;
+  const get = (k) => frag.get(k) || query.get(k);
+  if (!get("error") && !get("error_code")) return null;
+  return { code: get("error_code") || get("error"), text: (get("error_description") || "").replace(/\+/g, " ") };
+}
+
+// Email and password. Returns "in" when the account is ready now, or "confirm" when Supabase
+// emailed a confirmation link first (the default). Supabase hides whether an email is taken by
+// returning a user with no identities, so that case is reported as an error the UI can explain.
+export async function signUp(email, password) {
+  const sb = await getClient();
+  const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: here() } });
+  if (error) throw error;
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    const e = new Error("User already registered"); e.code = "user_already_exists"; throw e;
+  }
+  return data.session ? "in" : "confirm";
+}
+
+export async function signInWithPassword(email, password) {
+  const { error } = await (await getClient()).auth.signInWithPassword({ email, password });
+  if (error) throw error;
+}
+
 export async function signInWithEmail(email) {
   const sb = await getClient();
-  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
+  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: here() } });
+  if (error) throw error;
+}
+
+export async function resendConfirmation(email) {
+  const { error } = await (await getClient()).auth.resend({ type: "signup", email, options: { emailRedirectTo: here() } });
+  if (error) throw error;
+}
+
+export async function sendPasswordReset(email) {
+  const { error } = await (await getClient()).auth.resetPasswordForEmail(email, { redirectTo: here() });
+  if (error) throw error;
+}
+
+export async function updatePassword(password) {
+  const { error } = await (await getClient()).auth.updateUser({ password });
   if (error) throw error;
 }
 
 export async function signInWith(provider) {
   const sb = await getClient();
-  const { error } = await sb.auth.signInWithOAuth({ provider, options: { redirectTo: location.origin + location.pathname } });
+  const { error } = await sb.auth.signInWithOAuth({ provider, options: { redirectTo: here() } });
   if (error) throw error;
 }
 
@@ -106,8 +168,16 @@ export async function unsubscribe(token) {
 
 export async function signOut() { await (await getClient()).auth.signOut(); }
 
-export async function deleteMyData() {
+// Deletes the sign-in itself and, through the database cascade, every synced row.
+// Falls back to deleting the data row if the delete function has not been installed yet.
+export async function deleteAccount() {
   const sb = await getClient();
-  if (user) await sb.from("user_state").delete().eq("user_id", user.id);
-  await sb.auth.signOut();
+  if (!user) return;
+  const { error } = await sb.rpc("ada_delete_account");
+  if (error) {
+    const { error: e2 } = await sb.from("user_state").delete().eq("user_id", user.id);
+    if (e2) throw e2;
+  }
+  await sb.auth.signOut().catch(() => {});
+  return !error;
 }

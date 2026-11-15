@@ -8,6 +8,7 @@ import { TRACKS, unpackJobs, weeklyMatches } from "../site/js/match.js";
 
 const { SUPABASE_URL, SUPABASE_SERVICE_KEY } = process.env;
 const SITE = process.env.SITE_URL || "https://parveen06naresh.github.io/ada/";
+const LAYOUT = readFileSync(new URL("./email_layout.html", import.meta.url), "utf8");
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 export function digest(email, profile, jobs, now = Date.now()) {
@@ -15,18 +16,20 @@ export function digest(email, profile, jobs, now = Date.now()) {
   if (!recs.length) return null;
   const unsub = `${SITE}?unsubscribe=${encodeURIComponent(profile.alertToken || "")}`;
   const goal = TRACKS[(profile.tracks || [])[0]] || "AI";
-  const subject = `${recs.length} new ${goal} role${recs.length > 1 ? "s" : ""} that fit you this week`;
+  const subject = `${recs.length} new ${goal} role${recs.length > 1 ? "s that fit" : " that fits"} you this week`;
   const lines = recs.map((r, i) => `${i + 1}. ${r.j.c}: ${r.j.t} (${r.j.l[0] || "location not listed"})\n   Why: ${r.why.join(" · ")}\n   ${r.j.u}`);
-  const text = `Your best new matches on Ada this week:\n\n${lines.join("\n\n")}\n\nSee all your matches: ${SITE}#foryou\n\nYou get this because you turned on weekly matches on Ada. Unsubscribe: ${unsub}\n`;
-  const html = `<div style="font:15px/1.5 -apple-system,Segoe UI,sans-serif;color:#1c1a2b;max-width:600px">
-<p style="font-size:18px;font-weight:700;margin:0 0 4px">Your best new matches this week</p>
-<p style="color:#6a6782;margin:0 0 18px">${recs.length} roles posted in the last 7 days that fit your Ada profile.</p>
-${recs.map((r) => `<div style="padding:12px 0;border-top:1px solid #e3e0f0">
-<a href="${esc(r.j.u)}" style="color:#6a4cf0;font-weight:700;text-decoration:none">${esc(r.j.t)}</a><br>
-<b>${esc(r.j.c)}</b> · ${esc(r.j.l[0] || "Location not listed")}<br>
-<span style="color:#6a6782;font-size:13px">${esc(r.why.join(" · "))}</span></div>`).join("\n")}
-<p style="margin:20px 0"><a href="${SITE}#foryou" style="background:#6a4cf0;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:700">See all your matches</a></p>
-<p style="color:#9b98b4;font-size:12px">You get this because you turned on weekly matches on Ada, a free student open-source project. <a href="${esc(unsub)}" style="color:#9b98b4">Unsubscribe</a></p></div>`;
+  const text = `Your best new matches on Ada this week:\n\n${lines.join("\n\n")}\n\nSee all your matches: ${SITE}#match\n\nYou get this because you turned on weekly matches on Ada. Unsubscribe: ${unsub}\n`;
+  const rows = recs.map((r) => `<tr><td style="padding:14px 0;border-top:1px solid #efedf7;">
+<a href="${esc(r.j.u)}" style="color:#15142a;font-weight:700;text-decoration:none;font-size:15px;">${esc(r.j.t)}</a><br>
+<span style="color:#2b2940;"><b>${esc(r.j.c)}</b> · ${esc(r.j.l[0] || "Location not listed")}</span><br>
+<span style="color:#6a6782;font-size:13px;">${esc(r.why.join(" · "))}</span><br>
+<a href="${esc(r.j.u)}" style="color:#6a4cf0;font-size:13px;font-weight:600;text-decoration:none;">View and apply &rarr;</a></td></tr>`).join("\n");
+  const body = `<p style="margin:0 0 10px;color:#5d5b78;">${recs.length} role${recs.length > 1 ? "s" : ""} posted in the last 7 days that fit your Ada profile, best fit first.</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0 4px;"><tr><td style="background:#6a4cf0;border-radius:10px;"><a href="${SITE}#match" style="display:inline-block;padding:12px 22px;font-weight:700;color:#ffffff;text-decoration:none;">See all your matches</a></td></tr></table>`;
+  const foot = `You're getting this because you turned on weekly matches on Ada. <a href="${esc(unsub)}" style="color:#8a87a3;">Unsubscribe in one click</a> or turn it off in For you.<br>Ada is a free, open-source careers project built by a student.`;
+  const html = LAYOUT.replace("[[TITLE]]", esc(subject)).replace("[[PREHEADER]]", esc(`${recs[0].j.c}: ${recs[0].j.t} and more`))
+    .replace("[[HEADING]]", "Your best new matches this week").replace("[[BODY]]", body).replace("[[FOOTER]]", foot);
   return { to: email, subject, text, html, unsubscribe: unsub };
 }
 

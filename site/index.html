@@ -27,16 +27,30 @@
       <a href="#roadmap" data-view="roadmap">Roadmap</a>
       <a href="#programs" data-view="programs">Programs</a>
       <a href="#trends" data-view="trends">Trends</a>
-      <a href="#saved" data-view="saved">Saved <span id="saved-count" class="pill"></span></a>
+      <a href="#saved" data-view="saved">Applications <span id="saved-count" class="pill"></span></a>
     </nav>
-    <button id="login" class="link small" hidden>Log in</button>
-    <button id="account" class="btn small" hidden>Sign up free</button>
-    <button id="theme" class="icon-btn" aria-label="Toggle light and dark">☀</button>
+    <div class="top-right">
+      <button id="login" class="link small" hidden>Log in</button>
+      <button id="account" class="btn small" hidden>Sign up free</button>
+      <button id="theme" class="icon-btn" aria-label="Toggle light and dark">☀</button>
+    </div>
   </header>
+  <nav class="bottom-nav" aria-label="Sections">
+    <a href="#explore" data-view="explore"><span aria-hidden="true">⌕</span>Explore</a>
+    <a href="#match" data-view="match"><span aria-hidden="true">◎</span>Matches</a>
+    <a href="#saved" data-view="saved"><span aria-hidden="true">★</span>Applied<i class="dot-n" id="saved-count-m"></i></a>
+    <a href="#programs" data-view="programs"><span aria-hidden="true">✦</span>Programs</a>
+    <button type="button" id="more-btn" aria-expanded="false" aria-controls="more-sheet"><span aria-hidden="true">≡</span>More</button>
+    <div class="more-sheet" id="more-sheet" hidden>
+      <a href="#foryou" data-view="foryou">For you <small>Profile and weekly email</small></a>
+      <a href="#roadmap" data-view="roadmap">Roadmap <small>What to learn next</small></a>
+      <a href="#trends" data-view="trends">Trends <small>Who is hiring and what pays</small></a>
+    </div>
+  </nav>
 
   <main>
     <aside class="tour" id="tour" hidden>
-      <div><b>New here?</b> Drop your resume above to see your matches, <a href="#roadmap">get your roadmap</a>, then save roles with ☆. Press <kbd>/</kbd> to search.</div>
+      <div><b>New here?</b> <button type="button" class="link" id="tour-setup">Set up your search in 3 taps</button>, drop your resume on the Explore page to see your fit, then save roles with ☆ to track them. Press <kbd>/</kbd> to search.</div>
       <button class="link" id="tour-close" aria-label="Dismiss">Got it</button>
     </aside>
     <section class="hero" id="hero">
@@ -65,18 +79,31 @@
     <!-- Explore -->
     <section class="view" id="view-explore" hidden>
       <form class="filters" id="filters" role="search" onsubmit="return false">
-        <input id="q" type="search" placeholder="Search roles, companies, cities… try “LLM intern” or “NVIDIA”" aria-label="Search">
-        <select id="f-kind" aria-label="Type"><option value="any">Internships and new grad</option><option value="internship">Internships</option><option value="new-grad">New grad</option></select>
-        <select id="f-field" aria-label="Field"></select>
-        <select id="f-track" aria-label="Role"></select>
-        <select id="f-skill" aria-label="Skill"></select>
-        <select id="f-level" aria-label="Level"><option value="any">Any level</option><option>Undergrad</option><option>Masters</option><option>PhD</option><option>New grad</option></select>
-        <select id="f-country" aria-label="Country"></select>
-        <select id="f-days" aria-label="Posted"><option value="0">Any time</option><option value="1">Last 24 hours</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select>
-        <label class="check"><input type="checkbox" id="f-remote"> Remote</label>
-        <label class="check" title="Only where the listing says the employer sponsors visas"><input type="checkbox" id="f-visa"> Sponsors visas</label>
+        <div class="f-main">
+          <input id="q" type="search" placeholder="Search roles, companies, cities… try “LLM intern” or “NVIDIA”" aria-label="Search roles">
+          <select id="f-sort" aria-label="Sort by"><option value="new">Newest first</option><option value="fit">Best fit for me</option><option value="pay">Highest pay</option><option value="company">Company A–Z</option></select>
+        </div>
+        <div class="f-chips" role="group" aria-label="Quick filters">
+          <button type="button" class="chip" data-chip="kind:internship" aria-pressed="false">Internships</button>
+          <button type="button" class="chip" data-chip="kind:new-grad" aria-pressed="false">New grad</button>
+          <button type="button" class="chip" data-chip="remote" aria-pressed="false">Remote</button>
+          <button type="button" class="chip" data-chip="visa" aria-pressed="false" title="Only where the listing says the employer sponsors visas">Sponsors visas</button>
+          <button type="button" class="chip" data-chip="days:7" aria-pressed="false">Posted this week</button>
+          <button type="button" class="chip more-btn" id="f-more" aria-expanded="false" aria-controls="f-adv">More filters <span id="f-n" class="pill"></span></button>
+        </div>
+        <div class="f-adv" id="f-adv">
+          <select id="f-kind" aria-label="Type"><option value="any">Internships and new grad</option><option value="internship">Internships</option><option value="new-grad">New grad</option></select>
+          <select id="f-field" aria-label="Field"></select>
+          <select id="f-track" aria-label="Role"></select>
+          <select id="f-skill" aria-label="Skill"></select>
+          <select id="f-level" aria-label="Level"><option value="any">Any level</option><option>Undergrad</option><option>Masters</option><option>PhD</option><option>New grad</option></select>
+          <select id="f-country" aria-label="Country"></select>
+          <select id="f-days" aria-label="Posted"><option value="0">Any time</option><option value="1">Last 24 hours</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select>
+          <label class="check"><input type="checkbox" id="f-remote"> Remote</label>
+          <label class="check" title="Only where the listing says the employer sponsors visas"><input type="checkbox" id="f-visa"> Sponsors visas</label>
+        </div>
       </form>
-      <div class="result-bar"><span id="count"></span><button class="link" id="share-search">Copy link to this search</button></div>
+      <div class="result-bar"><span id="count" aria-live="polite"></span><span class="active-f" id="active-f"></span><button class="link" id="share-search">Copy link to this search</button></div>
       <ul class="cards" id="results"></ul>
       <button class="btn ghost more" id="more" hidden>Show more</button>
     </section>
@@ -180,10 +207,15 @@
       <div class="grid" id="trends"></div>
     </section>
 
-    <!-- Saved -->
+    <!-- Applications -->
     <section class="view" id="view-saved" hidden>
+      <div class="board-head">
+        <div><h2>Applications</h2><p class="muted" id="saved-sum"></p></div>
+        <div class="actions"><div class="seg" id="board-mode" role="tablist" aria-label="Layout"><button type="button" data-mode="board" class="on">Board</button><button type="button" data-mode="list">List</button></div>
+        <button class="btn ghost small" id="export">Download CSV</button></div>
+      </div>
       <div class="pipeline" id="pipeline"></div>
-      <div class="result-bar"><span id="saved-sum"></span><button class="link" id="export">Download as CSV</button></div>
+      <div class="board" id="board"></div>
       <ul class="cards" id="saved"></ul>
     </section>
   </main>
@@ -196,16 +228,19 @@
       <a href="https://github.com/zapplyjobs/Internships-2027">Zapply</a> (data by Zapply), plus employers' own career sites. Thank you.
       <a href="data/feed.xml">RSS feed</a> · <a href="https://github.com/parveen06naresh/ada">GitHub</a> · <span id="updated"></span></p>
   </footer>
-  <dialog id="account-dlg" class="panel dlg acct">
+  <dialog id="account-dlg" class="panel dlg acct" aria-labelledby="acct-title">
     <form method="dialog"><button class="icon-btn close" aria-label="Close">✕</button></form>
     <div id="acct-out">
-      <p class="kicker"><span class="dot"></span> Free forever · built by a student</p>
+      <div class="seg acct-tabs" role="tablist" aria-label="Account">
+        <button type="button" role="tab" data-mode="signup" id="tab-signup">Sign up</button>
+        <button type="button" role="tab" data-mode="login" id="tab-login">Log in</button>
+      </div>
       <h2 id="acct-title">Create your free Ada account</h2>
       <p class="muted" id="acct-why">One account turns Ada from a job list into your job search.</p>
-      <ul class="perks">
+      <ul class="perks" id="acct-perks">
         <li><b>Every match, ranked</b> by how well you fit, not just the top 3</li>
         <li><b>Your skill plan</b>: what to learn next to raise your fit on hundreds of roles</li>
-        <li><b>Save and track</b> every application from saved to offer</li>
+        <li><b>An application board</b> to track every role from saved to offer, with notes</li>
         <li><b>A weekly email</b> with only the new roles you fit</li>
         <li><b>Synced</b> on your laptop and phone</li>
       </ul>
@@ -213,25 +248,89 @@
         <button class="btn ghost wide" id="acct-google" type="button" hidden><span class="g">G</span> Continue with Google</button>
         <button class="btn ghost wide" id="acct-github" type="button" hidden>Continue with GitHub</button>
       </div>
-      <form class="email-row" id="acct-form" onsubmit="return false">
-        <input id="acct-email" type="email" autocomplete="email" placeholder="you@school.edu" aria-label="Email" required>
-        <button class="btn" id="acct-email-go" type="submit">Continue with email</button>
+      <form class="acct-form" id="acct-form" novalidate>
+        <label>Email <input id="acct-email" type="email" autocomplete="email" placeholder="you@school.edu" required></label>
+        <label id="acct-pw-row">Password
+          <span class="pw"><input id="acct-pw" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters" required>
+          <button type="button" class="link small" id="acct-pw-show" aria-label="Show password">Show</button></span>
+        </label>
+        <button class="btn wide" id="acct-go" type="submit">Create account</button>
       </form>
-      <p class="muted" id="acct-msg" aria-live="polite"></p>
-      <p class="fine">No password. We email you a one-tap link, and the same link signs you in next time. Once you're signed in, your saved roles, profile and resume sync to your private account that only you can read. Delete it anytime.</p>
+      <p class="acct-msg" id="acct-msg" role="alert" aria-live="assertive"></p>
+      <div class="acct-alt">
+        <button type="button" class="link small" id="acct-forgot" hidden>Forgot password?</button>
+        <button type="button" class="link small" id="acct-magic">Email me a sign-in link instead</button>
+      </div>
+      <p class="fine" id="acct-fine">Free. Your saved roles, profile and resume sync to a private account only you can read. Delete it anytime.</p>
     </div>
     <div id="acct-sent" hidden>
       <div class="sent-icon" aria-hidden="true">✉</div>
-      <h2>Check your inbox</h2>
-      <p>We sent a sign-in link to <b id="acct-sent-to"></b>. Open it on this device and you're in.</p>
-      <p class="muted small">Nothing yet? Check spam or Promotions, then <button class="link" id="acct-resend" type="button">send it again</button> or <button class="link" id="acct-change" type="button">use another email</button>.</p>
+      <h2 id="sent-title">Check your inbox</h2>
+      <p id="sent-text">We sent a link to <b id="acct-sent-to"></b>.</p>
+      <p class="muted small">It can take a minute. Check spam or Promotions too.
+        <button class="link" id="acct-resend" type="button">Send it again</button> ·
+        <button class="link" id="acct-change" type="button">Use another email</button></p>
+      <p class="acct-msg" id="sent-msg" aria-live="polite"></p>
+    </div>
+    <div id="acct-reset" hidden>
+      <h2>Choose a new password</h2>
+      <p class="muted">You're signed in from the reset link. Set a new password to finish.</p>
+      <form class="acct-form" id="reset-form" novalidate>
+        <label>New password <input id="reset-pw" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters" required></label>
+        <button class="btn wide" id="reset-go" type="submit">Save new password</button>
+      </form>
+      <p class="acct-msg" id="reset-msg" role="alert"></p>
     </div>
     <div id="acct-in" hidden>
-      <h2>You're in</h2>
-      <p class="muted">Signed in as <b id="acct-who"></b>. Everything you save syncs to your account within a few seconds.</p>
+      <div class="acct-head"><div class="avatar" id="acct-avatar" aria-hidden="true"></div>
+        <div><h2 id="acct-in-title">Your account</h2><p class="muted small">Signed in as <b id="acct-who"></b></p></div></div>
+      <div class="acct-rows">
+        <div class="acct-row"><span>Saved roles</span><b id="acct-n-saved">0</b></div>
+        <div class="acct-row"><span>Applications in progress</span><b id="acct-n-apps">0</b></div>
+        <div class="acct-row"><span>Weekly matches email</span><b id="acct-alerts">Off</b></div>
+      </div>
+      <details class="acct-pw-change"><summary>Change password</summary>
+        <form class="acct-form" id="pw-form" novalidate>
+          <input id="pw-new" type="password" autocomplete="new-password" minlength="8" placeholder="New password, 8+ characters" aria-label="New password" required>
+          <button class="btn ghost" type="submit">Update</button>
+        </form>
+        <p class="acct-msg" id="pw-msg" role="alert"></p>
+      </details>
       <div class="actions"><button class="btn ghost" id="acct-signout" type="button">Sign out</button>
-      <button class="link danger" id="acct-delete" type="button">Delete my account data</button></div>
+        <button class="link danger" id="acct-delete" type="button">Delete my account</button></div>
     </div>
+  </dialog>
+  <dialog id="job-dlg" class="drawer" aria-labelledby="job-title">
+    <form method="dialog" class="drawer-x"><button class="icon-btn close" aria-label="Close">✕</button></form>
+    <div id="job-body" class="drawer-body"></div>
+  </dialog>
+  <dialog id="onboard" class="panel dlg onboard" aria-labelledby="ob-title">
+    <form method="dialog"><button class="icon-btn close" aria-label="Skip">✕</button></form>
+    <p class="kicker"><span class="dot"></span> <span id="ob-step">Step 1 of 3</span></p>
+    <div class="ob-pane" data-step="1">
+      <h2 id="ob-title">What are you looking for?</h2>
+      <div class="ob-opts" data-key="kind">
+        <button type="button" data-v="internship"><b>An internship</b><span>Summer 2027 and off-cycle</span></button>
+        <button type="button" data-v="new-grad"><b>A new-grad job</b><span>Full-time, starting 2026 or 2027</span></button>
+        <button type="button" data-v="any"><b>Both</b><span>Show me everything</span></button>
+      </div>
+    </div>
+    <div class="ob-pane" data-step="2" hidden>
+      <h2>Which field?</h2>
+      <p class="muted">Pick one. You can change it anytime in For you.</p>
+      <div class="ob-opts grid" id="ob-fields" data-key="field"></div>
+    </div>
+    <div class="ob-pane" data-step="3" hidden>
+      <h2>Where can you work?</h2>
+      <div class="ob-opts" data-key="where">
+        <button type="button" data-v="United States"><b>United States</b></button>
+        <button type="button" data-v="Canada"><b>Canada</b></button>
+        <button type="button" data-v="United Kingdom"><b>United Kingdom</b></button>
+        <button type="button" data-v="any"><b>Anywhere, including remote</b></button>
+      </div>
+      <label class="check"><input type="checkbox" id="ob-visa"> I'll need visa sponsorship</label>
+    </div>
+    <div class="actions ob-nav"><button type="button" class="link" id="ob-back" hidden>Back</button><span></span><button type="button" class="btn" id="ob-next" disabled>Next</button></div>
   </dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script type="module" src="js/app.js"></script>

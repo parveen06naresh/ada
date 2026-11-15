@@ -27,3 +27,14 @@ language sql security definer set search_path = public as $$
 $$;
 revoke all on function public.ada_unsubscribe(text) from public;
 grant execute on function public.ada_unsubscribe(text) to anon, authenticated;
+
+-- Delete my account: removes the sign-in and, through the cascade above, the saved data.
+create or replace function public.ada_delete_account() returns void
+language plpgsql security definer set search_path = public, auth as $$
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  delete from auth.users where id = auth.uid();
+end;
+$$;
+revoke all on function public.ada_delete_account() from public, anon;
+grant execute on function public.ada_delete_account() to authenticated;
